@@ -1,0 +1,26 @@
+{
+  "name": "table-games",
+  "version": "1.0.0",
+  "private": true,
+  "description": "在线桌游平台 - 五子棋、中国象棋、国际象棋",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm -w client run dev",
+    "dev:server": "npm -w server run dev",
+    "build": "npm -w shared run build && npm -w server run build && npm -w client run build",
+    "db:migrate": "npm -w server run db:migrate",
+    "db:generate": "npm -w server run db:generate",
+    "db:studio": "npm -w server run db:studio",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.0"
+  }
+}

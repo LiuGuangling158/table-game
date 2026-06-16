@@ -44,6 +44,17 @@ export function connectSocket(): Socket {
   return socket;
 }
 
+/**
+ * 更新 Socket 认证 token (Token 刷新后调用)
+ */
+export function refreshSocketToken(newToken: string): void {
+  if (socket) {
+    (socket as any)._authToken = newToken;
+    // 更新已存在连接上的 auth 属性 (虽然 Socket.IO 不会自动使用它，但下一次重连时会验证)
+    (socket as any).auth = { token: newToken };
+  }
+}
+
 export function getSocket(): Socket | null {
   return socket;
 }

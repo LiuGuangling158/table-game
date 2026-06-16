@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useGameStore } from '../../stores/gameStore';
+import { useAuthStore } from '../../stores/authStore';
 import { getSocket } from '../../services/socket';
 import { Move, PlayerColor } from 'shared';
 
@@ -19,8 +20,17 @@ const PIECE_NAMES: Record<string, string> = {
 
 export default function XiangqiBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { boardState, currentPlayer, lastMove, gameOver, legalMoves } = useGameStore();
+  const { boardState, currentPlayer, lastMove, gameOver, legalMoves, currentRoom } = useGameStore();
+  const user = useAuthStore((s) => s.user);
   const [selectedPos, setSelectedPos] = useState<[number, number] | null>(null);
+
+  // 对手走棋后清除选中的棋子
+  useEffect(() => {
+    setSelectedPos(null);
+  }, [boardState?.moveCount]);
+
+  // 获取当前用户执棋颜色
+  const myColor = currentRoom?.players.find(p => p.userId === user?.id)?.color ?? null;
 
   // 根据选中的棋子过滤合法走法目标
   const selectedLegalToPositions = useMemo(() => {
@@ -113,6 +123,25 @@ export default function XiangqiBoard() {
       }
     }
 
+    // 将军高亮：被将军的将/帅闪烁红框
+    if (boardState?.inCheck) {
+      const checkedColor = boardState.inCheck;
+      const kingPiece = checkedColor === 'RED' ? 'K' : 'k';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (boardState.board[r][c] === kingPiece) {
+            const kx = PADDING + c * CELL_SIZE;
+            const ky = PADDING + r * CELL_SIZE;
+            ctx.strokeStyle = '#e00';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(kx, ky, PIECE_RADIUS + 4, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
     // 棋子
     if (!boardState?.board) return;
     for (let r = 0; r < ROWS; r++) {
@@ -159,6 +188,8 @@ export default function XiangqiBoard() {
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (gameOver) return;
+    // 检查回合：只有轮到己方时才能操作
+    if (!currentPlayer || !myColor || currentPlayer !== myColor) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -169,10 +200,14 @@ export default function XiangqiBoard() {
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
-    const col = Math.round((x - PADDING) / CELL_SIZE);
-    const row = Math.round((y - PADDING) / CELL_SIZE);
+    const colFloat = (x - PADDING) / CELL_SIZE;
+    const rowFloat = (y - PADDING) / CELL_SIZE;
+    const col = Math.round(colFloat);
+    const row = Math.round(rowFloat);
 
     if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
+    // 近距检查：点击必须在实际交叉点附近
+    if (Math.abs(colFloat - col) > 0.45 || Math.abs(rowFloat - row) > 0.45) return;
 
     if (!selectedPos) {
       // 选择棋子

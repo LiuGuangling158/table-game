@@ -1,22 +1,47 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFriendStore } from '../stores/friendStore';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
-import { FriendRequestInfo } from 'shared';
+import { FriendRequestInfo, GameType } from 'shared';
+
+const GAME_OPTIONS = [
+  { type: GameType.GOMOKU, label: '五子棋' },
+  { type: GameType.XIANGQI, label: '中国象棋' },
+  { type: GameType.CHESS, label: '国际象棋' },
+];
 
 export default function FriendsPage() {
-  const { friends, setFriends, requests, setRequests, removeRequest } = useFriendStore();
+  const navigate = useNavigate();
+  const { friends, setFriends, requests, setRequests, removeRequest, updateFriendStatus } = useFriendStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [tab, setTab] = useState<'friends' | 'requests'>('friends');
   const [loading, setLoading] = useState(false);
+  const [invitingFriend, setInvitingFriend] = useState<string | null>(null);
 
   const socket = getSocket();
 
   useEffect(() => {
     fetchFriends();
     fetchRequests();
-  }, []);
+
+    // Bug 43: 监听好友在线状态变化
+    if (socket) {
+      const onUserOnline = (data: { userId: string }) => {
+        updateFriendStatus(data.userId, 'ONLINE');
+      };
+      const onUserOffline = (data: { userId: string }) => {
+        updateFriendStatus(data.userId, 'OFFLINE');
+      };
+      socket.on('user:online', onUserOnline);
+      socket.on('user:offline', onUserOffline);
+      return () => {
+        socket.off('user:online', onUserOnline);
+        socket.off('user:offline', onUserOffline);
+      };
+    }
+  }, [socket]);
 
   const fetchFriends = async () => {
     try {
@@ -93,21 +118,22 @@ export default function FriendsPage() {
     }
   };
 
-  const handleInviteToGame = async (friendId: string) => {
-    // 跳转到大厅，自动弹出创建房间
-    // 简化实现：直接创建房间并邀请
+  const handleInviteToGame = async (friendId: string, gameType: string) => {
+    setInvitingFriend(friendId);
     try {
-      const { data: roomData } = await api.post('/games/rooms', { gameType: 'GOMOKU' });
+      const { data: roomData } = await api.post('/games/rooms', { gameType });
       if (roomData.success) {
         socket?.emit('room:invite', {
           targetUserId: friendId,
           roomId: roomData.data.id,
-          gameType: 'GOMOKU',
+          gameType,
         });
-        window.location.href = `/room/${roomData.data.id}`;
+        navigate(`/room/${roomData.data.id}`);
       }
     } catch (err: any) {
-      alert('创建房间失败');
+      alert(err.response?.data?.message || '创建房间失败');
+    } finally {
+      setInvitingFriend(null);
     }
   };
 
@@ -219,12 +245,25 @@ export default function FriendsPage() {
                 </div>
                 <div className="flex gap-2">
                   {friend.status !== 'OFFLINE' && (
-                    <button
-                      onClick={() => handleInviteToGame(friend.userId)}
-                      className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600"
-                    >
-                      邀请游戏
-                    </button>
+                    <div className="relative group">
+                      <button
+                        disabled={invitingFriend === friend.userId}
+                        className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 disabled:opacity-50"
+                      >
+                        {invitingFriend === friend.userId ? '邀请中...' : '邀请游戏'}
+                      </button>
+                      <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border py-1 hidden group-hover:block z-10 min-w-[120px]">
+                        {GAME_OPTIONS.map(game => (
+                          <button
+                            key={game.type}
+                            onClick={() => handleInviteToGame(friend.userId, game.type)}
+                            className="block w-full text-left px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                          >
+                            {game.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   <button
                     onClick={() => handleRemoveFriend(friend.userId)}

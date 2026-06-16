@@ -38,14 +38,14 @@ export class GomokuEngine extends GameEngine {
       return { valid: false, message: '不是你的回合' };
     }
 
+    // 先检查是否在棋盘范围内 (防止越界崩溃)
+    if (!this.isInBounds(to)) {
+      return { valid: false, message: '超出棋盘范围' };
+    }
+
     // 检查目标位置是否为空
     if (state.board[to.row][to.col] !== null) {
       return { valid: false, message: '该位置已有棋子' };
-    }
-
-    // 检查是否在棋盘范围内
-    if (!this.isInBounds(to)) {
-      return { valid: false, message: '超出棋盘范围' };
     }
 
     return { valid: true };
@@ -58,26 +58,21 @@ export class GomokuEngine extends GameEngine {
     return {
       ...this.switchPlayer(state),
       board: newBoard,
+      lastMove: { from: move.to, to: move.to },
     };
   }
 
   checkGameOver(state: BoardState): GameOverResult | null {
-    // 找到最后一步落子位置
-    const lastPlayer = this.getNextPlayer(state.currentPlayer);
-    const lastPieceNotation = this.getPieceNotation(lastPlayer);
-
-    // 检查所有方向
-    for (let r = 0; r < this.boardRows; r++) {
-      for (let c = 0; c < this.boardCols; c++) {
-        if (state.board[r][c] === lastPieceNotation) {
-          if (this.checkFiveInRow(state.board, r, c)) {
-            return {
-              winner: lastPlayer,
-              reason: EndReason.FIVE_IN_ROW,
-              finalState: state,
-            };
-          }
-        }
+    // 仅从最后落子位置检查五连（优化：O(1) 替代 O(n²) 全盘扫描）
+    const lastMove = state.lastMove;
+    if (lastMove) {
+      const lastPlayer = this.getNextPlayer(state.currentPlayer);
+      if (this.checkFiveInRow(state.board, lastMove.to.row, lastMove.to.col)) {
+        return {
+          winner: lastPlayer,
+          reason: EndReason.FIVE_IN_ROW,
+          finalState: state,
+        };
       }
     }
 

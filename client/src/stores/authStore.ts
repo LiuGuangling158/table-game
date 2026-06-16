@@ -27,6 +27,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
+    // 清除其他 store 的状态 (通过 window dispatch 事件)
+    window.dispatchEvent(new CustomEvent('auth:logout'));
     set({ user: null, token: null, refreshToken: null, isAuthenticated: false });
   },
 

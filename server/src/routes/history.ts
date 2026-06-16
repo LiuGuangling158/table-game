@@ -16,7 +16,7 @@ router.get('/', async (req, res: Response) => {
 
 // GET /api/history/:id — 获取单局详情
 router.get('/:id', async (req, res: Response) => {
-  const detail = await historyService.getGameDetail(req.params.id);
+  const detail = await historyService.getGameDetail(req.params.id, req.user!.userId);
   if (!detail) {
     res.status(404).json({ success: false, error: 'NOT_FOUND', message: '记录不存在' });
     return;

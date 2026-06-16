@@ -53,4 +53,67 @@ server.listen(config.port, () => {
   logger.info(`==================================`);
 });
 
+// 优雅关闭
+async function gracefulShutdown(signal: string) {
+  logger.info(`收到 ${signal} 信号，开始优雅关闭...`);
+
+  // 通知所有活跃游戏中的玩家并保存游戏记录
+  const { activeGames, activeWangbaGames } = require('./socket/gameHandler');
+  const { gameService } = require('./services/gameService');
+  for (const [roomId, gameData] of activeGames) {
+    io.to(roomId).emit('notify:info', {
+      message: '服务器正在维护，游戏即将中断',
+    });
+    io.to(roomId).emit('game:over', {
+      winner: null,
+      reason: 'DISCONNECT',
+      finalState: gameData.state,
+    });
+
+    // 持久化游戏记录 (Bug 34: 防止记录丢失)
+    try {
+      await gameService.endGame(roomId, null, 'DISCONNECT');
+      logger.info(`游戏记录已保存: ${roomId}`);
+    } catch (e) {
+      logger.error(`保存游戏记录失败: ${roomId}`, e);
+    }
+  }
+
+  // 清理抽王八游戏
+  for (const [roomId] of activeWangbaGames) {
+    io.to(roomId).emit('notify:info', {
+      message: '服务器正在维护，游戏即将中断',
+    });
+    io.to(roomId).emit('game:over', {
+      winner: null,
+      reason: 'DISCONNECT',
+    });
+    try {
+      await gameService.endGame(roomId, null, 'DISCONNECT');
+      logger.info(`抽王八游戏记录已保存: ${roomId}`);
+    } catch (e) {
+      logger.error(`保存抽王八游戏记录失败: ${roomId}`, e);
+    }
+  }
+
+  // 关闭 HTTP 服务器 (停止接受新连接)
+  server.close(() => {
+    logger.info('HTTP 服务器已关闭');
+  });
+
+  // 关闭 Socket.IO
+  io.close(() => {
+    logger.info('Socket.IO 已关闭');
+  });
+
+  // 给正在处理中的请求一些时间完成
+  setTimeout(() => {
+    logger.info('服务器已关闭');
+    process.exit(0);
+  }, 3000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 export { app, server, io };

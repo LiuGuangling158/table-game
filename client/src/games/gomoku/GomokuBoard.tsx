@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useGameStore } from '../../stores/gameStore';
+import { useAuthStore } from '../../stores/authStore';
 import { getSocket } from '../../services/socket';
 import { Move, PlayerColor } from 'shared';
 
@@ -11,7 +12,45 @@ const STONE_RADIUS = CELL_SIZE * 0.42;
 
 export default function GomokuBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { boardState, currentPlayer, lastMove, gameOver } = useGameStore();
+  const { boardState, currentPlayer, lastMove, gameOver, currentRoom } = useGameStore();
+  const user = useAuthStore((s) => s.user);
+
+  // 获取当前用户执棋颜色
+  const myColor = currentRoom?.players.find(p => p.userId === user?.id)?.color ?? null;
+
+  // 计算获胜五连的单元格位置
+  const winningCells = useCallback((): Set<string> => {
+    const result = new Set<string>();
+    if (!gameOver || gameOver.reason !== 'FIVE_IN_ROW' || !boardState || !lastMove) return result;
+
+    const [lr, lc] = lastMove.to;
+    const piece = boardState.board[lr][lc];
+    if (!piece) return result;
+
+    const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+    for (const [dr, dc] of directions) {
+      const cells: [number, number][] = [[lr, lc]];
+      // 正方向
+      for (let i = 1; i < 5; i++) {
+        const r = lr + dr * i, c = lc + dc * i;
+        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && boardState.board[r][c] === piece) {
+          cells.push([r, c]);
+        } else break;
+      }
+      // 反方向
+      for (let i = 1; i < 5; i++) {
+        const r = lr - dr * i, c = lc - dc * i;
+        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && boardState.board[r][c] === piece) {
+          cells.push([r, c]);
+        } else break;
+      }
+      if (cells.length >= 5) {
+        cells.forEach(([r, c]) => result.add(`${r},${c}`));
+        break;
+      }
+    }
+    return result;
+  }, [gameOver, boardState, lastMove]);
 
   const drawBoard = useCallback(() => {
     const canvas = canvasRef.current;
@@ -54,6 +93,9 @@ export default function GomokuBoard() {
       ctx.fill();
     });
 
+    // 获胜连线高亮
+    const winners = winningCells();
+
     // 棋子
     if (!boardState?.board) return;
     for (let r = 0; r < BOARD_SIZE; r++) {
@@ -63,6 +105,15 @@ export default function GomokuBoard() {
 
         const x = PADDING + c * CELL_SIZE;
         const y = PADDING + r * CELL_SIZE;
+        const isWinning = winners.has(`${r},${c}`);
+
+        // 获胜连线发光效果
+        if (isWinning) {
+          ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+          ctx.beginPath();
+          ctx.arc(x, y, STONE_RADIUS + 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         // 阴影
         ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -93,7 +144,7 @@ export default function GomokuBoard() {
         }
       }
     }
-  }, [boardState, lastMove]);
+  }, [boardState, lastMove, winningCells]);
 
   useEffect(() => {
     drawBoard();
@@ -101,6 +152,8 @@ export default function GomokuBoard() {
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (gameOver) return;
+    // 检查回合：只有轮到己方时才能走棋
+    if (!currentPlayer || !myColor || currentPlayer !== myColor) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -111,10 +164,14 @@ export default function GomokuBoard() {
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
-    const col = Math.round((x - PADDING) / CELL_SIZE);
-    const row = Math.round((y - PADDING) / CELL_SIZE);
+    const colFloat = (x - PADDING) / CELL_SIZE;
+    const rowFloat = (y - PADDING) / CELL_SIZE;
+    const col = Math.round(colFloat);
+    const row = Math.round(rowFloat);
 
     if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return;
+    // 近距检查：点击必须在实际交叉点附近（cellSize 的 40% 内）
+    if (Math.abs(colFloat - col) > 0.4 || Math.abs(rowFloat - row) > 0.4) return;
     if (boardState?.board[row][col]) return;
 
     const pieceNotation = currentPlayer === PlayerColor.BLACK ? 'B' : 'W';

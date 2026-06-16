@@ -108,8 +108,11 @@ export class ChessEngine extends GameEngine {
 
   applyMove(state: BoardState, move: Move): BoardState {
     const piece = this.getPiece(state.board, move.from);
-    const pieceColor = this.getPieceColor(piece!);
-    const pieceType = piece!.toUpperCase();
+    if (!piece) {
+      throw new Error(`ChessEngine.applyMove: 位置 (${move.from.row},${move.from.col}) 无棋子`);
+    }
+    const pieceColor = this.getPieceColor(piece);
+    const pieceType = piece.toUpperCase();
 
     let newBoard = this.setPiece(state.board, move.from, null);
     newBoard = this.setPiece(newBoard, move.to, piece);
@@ -136,6 +139,12 @@ export class ChessEngine extends GameEngine {
       if (move.from.row === 0 && move.from.col === 0) castlingRights.blackQueenSide = false;
       if (move.from.row === 0 && move.from.col === 7) castlingRights.blackKingSide = false;
     }
+
+    // Bug 39: 检查起始格的车是否被吃，撤消失去的易位权
+    if (newBoard[7][0] !== 'R') castlingRights.whiteQueenSide = false;
+    if (newBoard[7][7] !== 'R') castlingRights.whiteKingSide = false;
+    if (newBoard[0][0] !== 'r') castlingRights.blackQueenSide = false;
+    if (newBoard[0][7] !== 'r') castlingRights.blackKingSide = false;
 
     // 王车易位 — 移动车
     if (pieceType === 'K' && Math.abs(move.to.col - move.from.col) === 2) {
@@ -165,7 +174,13 @@ export class ChessEngine extends GameEngine {
     if (pieceType === 'P') {
       const promotionRow = pieceColor === PlayerColor.WHITE ? 0 : 7;
       if (move.to.row === promotionRow) {
+        const validPromotions = pieceColor === PlayerColor.WHITE
+          ? ['Q', 'R', 'B', 'N']
+          : ['q', 'r', 'b', 'n'];
         const promotionPiece = move.promotion || (pieceColor === PlayerColor.WHITE ? 'Q' : 'q');
+        if (!validPromotions.includes(promotionPiece)) {
+          throw new Error(`ChessEngine.applyMove: 无效的升变棋子 ${promotionPiece}`);
+        }
         newBoard = this.setPiece(newBoard, move.to, promotionPiece);
       }
     }
@@ -178,6 +193,7 @@ export class ChessEngine extends GameEngine {
       moveCount: state.moveCount + 1,
       castlingRights,
       enPassantTarget,
+      lastMove: { from: move.from, to: move.to },
     };
 
     // 检查将军状态

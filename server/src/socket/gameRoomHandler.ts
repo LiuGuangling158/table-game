@@ -4,6 +4,9 @@ import { gameService } from '../services/gameService';
 import { getUserSockets } from './index';
 import { logger } from '../utils/logger';
 
+// 存储房间的倒计时定时器: roomId → timeoutId
+const countdownTimers = new Map<string, NodeJS.Timeout>();
+
 export function handleGameRoom(io: Server, socket: Socket): void {
   const user = (socket as any).user;
 
@@ -78,16 +81,37 @@ export function handleGameRoom(io: Server, socket: Socket): void {
         ready: data.ready,
       });
 
+      // 取消就绪时，清除该房间的倒计时
+      if (!data.ready) {
+        const existingTimer = countdownTimers.get(data.roomId);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+          countdownTimers.delete(data.roomId);
+          io.to(data.roomId).emit('room:countdown_cancelled', { reason: '有玩家取消了准备' });
+        }
+        return;
+      }
+
       // 如果所有玩家都准备好了，自动开始游戏倒计时
       const room = await gameService.getRoom(data.roomId);
       if (room && room.players.length >= 2 && room.players.every(p => p.ready)) {
         io.to(data.roomId).emit('room:all_ready', { countdown: 3 });
 
+        // 清除旧定时器（如果存在）
+        const oldTimer = countdownTimers.get(data.roomId);
+        if (oldTimer) clearTimeout(oldTimer);
+
         // 3秒后自动开始游戏
-        setTimeout(async () => {
+        const timer = setTimeout(async () => {
+          countdownTimers.delete(data.roomId);
           try {
             const updatedRoom = await gameService.getRoom(data.roomId);
-            if (updatedRoom && updatedRoom.status === RoomStatus.WAITING && updatedRoom.players.length >= 2) {
+            // 检查房间状态、人数、以及所有玩家是否仍然 ready
+            if (updatedRoom
+              && updatedRoom.status === RoomStatus.WAITING
+              && updatedRoom.players.length >= 2
+              && updatedRoom.players.every(p => p.ready)
+            ) {
               const started = await gameService.startGame(data.roomId);
               io.to(data.roomId).emit('room:game_start', {
                 roomId: started.id,
@@ -99,6 +123,7 @@ export function handleGameRoom(io: Server, socket: Socket): void {
             logger.error('自动开始游戏失败:', e);
           }
         }, 3000);
+        countdownTimers.set(data.roomId, timer);
       }
     } catch (error: any) {
       socket.emit('notify:error', { code: 'ROOM_ERROR', message: error.message });
@@ -130,12 +155,23 @@ export function handleGameRoom(io: Server, socket: Socket): void {
   // 开始游戏 (房主或自动)
   socket.on('room:start_game', async (data: { roomId: string }) => {
     try {
-      const room = await gameService.startGame(data.roomId);
+      // 校验操作者是房主
+      const room = await gameService.getRoom(data.roomId);
+      if (!room) {
+        socket.emit('notify:error', { code: 'ROOM_ERROR', message: '房间不存在' });
+        return;
+      }
+      if (room.hostId !== user.userId) {
+        socket.emit('notify:error', { code: 'ROOM_ERROR', message: '只有房主可以开始游戏' });
+        return;
+      }
+
+      const started = await gameService.startGame(data.roomId);
 
       // 通知房间所有玩家游戏开始
       io.to(data.roomId).emit('room:game_start', {
-        roomId: room.id,
-        gameType: room.gameType,
+        roomId: started.id,
+        gameType: started.gameType,
       });
 
       io.to('lobby').emit('lobby:room_updated', { roomId: data.roomId });

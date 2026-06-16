@@ -16,6 +16,7 @@ model User {
   openId        String?   @unique
   unionId       String?   @unique
   oauthPlatform String?
+  tokenVersion  Int        @default(0)
   status        UserStatus @default(OFFLINE)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -90,6 +91,7 @@ enum GameType {
   GOMOKU
   XIANGQI
   CHESS
+  WANGBA
 }
 
 enum RoomStatus {
@@ -119,6 +121,9 @@ enum PlayerColor {
   WHITE
   RED
   BLUE
+  GREEN
+  YELLOW
+  PURPLE
 }
 
 model GameMove {
@@ -155,4 +160,5 @@ enum EndReason {
   DRAW
   TIMEOUT
   DISCONNECT
+  LAST_CARD
 }

@@ -31,12 +31,37 @@ router.get('/search', async (req, res: Response) => {
 router.put('/me', async (req, res: Response) => {
   const { nickname, avatar } = req.body;
 
+  // 输入校验
+  if (nickname !== undefined) {
+    if (typeof nickname !== 'string') {
+      throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '昵称格式不正确');
+    }
+    const trimmed = nickname.trim();
+    if (trimmed.length < 2 || trimmed.length > 20) {
+      throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '昵称长度需在2-20个字符之间');
+    }
+    if (/<[^>]*>/.test(trimmed)) {
+      throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '昵称包含非法字符');
+    }
+  }
+
+  if (avatar !== undefined) {
+    if (typeof avatar !== 'string' || avatar.length > 2048) {
+      throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '头像地址格式不正确');
+    }
+  }
+
+  const updateData: any = {};
+  if (nickname !== undefined) updateData.nickname = nickname.trim();
+  if (avatar !== undefined) updateData.avatar = avatar;
+
+  if (Object.keys(updateData).length === 0) {
+    throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '无可更新的字段');
+  }
+
   const updatedUser = await prisma.user.update({
     where: { id: req.user!.userId },
-    data: {
-      ...(nickname && { nickname }),
-      ...(avatar !== undefined && { avatar }),
-    },
+    data: updateData,
   });
 
   res.json({

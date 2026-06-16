@@ -21,17 +21,10 @@ export function useGameRoom(roomId: string) {
     if (!roomId) return;
 
     const socket = getSocket();
-    if (!socket) {
-      console.warn('[useGameRoom] Socket 未连接，延迟注册事件');
-      return;
-    }
+    if (!socket) return;
 
     // 避免 React StrictMode 重复注册
     if (registeredRef.current) return;
-    registeredRef.current = true;
-
-    // 请求当前游戏状态
-    socket.emit('game:get_state', { roomId });
 
     // 游戏状态同步 (来自 init 或 get_state)
     const onSync = (data: { fullState: BoardState; currentPlayer: PlayerColor; legalMoves?: Array<{ from: [number, number]; to: [number, number] }> }) => {
@@ -40,6 +33,9 @@ export function useGameRoom(roomId: string) {
       if (data.legalMoves) {
         setLegalMoves(data.legalMoves);
       }
+      // Bug 30: 新游戏同步时清除旧游戏的结束状态
+      setGameOver(null);
+      setLastMove(null);
     };
 
     // 走棋结果
@@ -74,20 +70,39 @@ export function useGameRoom(roomId: string) {
       setCurrentRoom(data.room);
     };
 
-    // 断线重连恢复
-    const handleReconnect = () => {
-      console.log('[useGameRoom] Socket 重连，恢复游戏状态, room:', roomId);
+    // 注册所有事件处理器
+    const registerEvents = () => {
+      socket.on('game:sync', onSync);
+      socket.on('game:move_result', onMoveResult);
+      socket.on('game:turn', onTurn);
+      socket.on('game:over', onGameOver);
+      socket.on('room:joined', onJoined);
+    };
+
+    // 断线重连 / 延迟注册
+    const handleConnect = () => {
+      console.log('[useGameRoom] Socket 已连接，注册游戏事件, room:', roomId);
+      registerEvents();
       socket.emit('room:join', { roomId });
+      // 加入房间后请求游戏状态
       setTimeout(() => {
         socket.emit('game:get_state', { roomId });
       }, 300);
     };
 
-    socket.on('game:sync', onSync);
-    socket.on('game:move_result', onMoveResult);
-    socket.on('game:turn', onTurn);
-    socket.on('game:over', onGameOver);
-    socket.on('room:joined', onJoined);
+    // Socket 已连接：直接注册事件并请求状态
+    if (socket.connected) {
+      registeredRef.current = true;
+      registerEvents();
+      socket.emit('game:get_state', { roomId });
+    } else {
+      // Socket 尚未连接：等待 connect 事件触发后再注册
+      registeredRef.current = true;
+      socket.once('connect', handleConnect);
+    }
+
+    // 重连时重新注册 (仅用于重连场景，首次连接由上面分支处理)
+    const handleReconnect = () => { handleConnect(); };
     socket.on('connect', handleReconnect);
 
     return () => {
@@ -98,6 +113,7 @@ export function useGameRoom(roomId: string) {
       socket.off('game:over', onGameOver);
       socket.off('room:joined', onJoined);
       socket.off('connect', handleReconnect);
+      socket.off('connect', handleConnect); // 清理 once 监听器
     };
   }, [roomId]);
 
@@ -117,8 +133,12 @@ export function useGameRoom(roomId: string) {
     getSocket()?.emit('game:draw_response', { roomId, accept });
   }, [roomId]);
 
-  const initGame = useCallback((gameType: GameType) => {
-    getSocket()?.emit('game:init', { roomId, gameType });
+  const initGame = useCallback((gameType: GameType, drawMode?: string) => {
+    if (gameType === 'WANGBA') {
+      getSocket()?.emit('game:wangba_init', { roomId, drawMode });
+    } else {
+      getSocket()?.emit('game:init', { roomId, gameType });
+    }
   }, [roomId]);
 
   const leaveRoom = useCallback(() => {

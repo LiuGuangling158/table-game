@@ -5,16 +5,30 @@ import { GAME_TYPE_LABELS } from 'shared';
 export default function HistoryPage() {
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const pageSize = 20;
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(1);
   }, []);
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (pageNum: number) => {
+    setLoading(true);
     try {
-      const { data } = await api.get('/history');
+      const { data } = await api.get('/history', { params: { page: pageNum, pageSize } });
       if (data.success) {
-        setRecords(data.data.items || []);
+        const newItems = data.data.items || [];
+        setTotal(data.data.total || 0);
+        setHasMore(pageNum * pageSize < data.data.total);
+
+        if (pageNum === 1) {
+          setRecords(newItems);
+        } else {
+          setRecords(prev => [...prev, ...newItems]);
+        }
+        setPage(pageNum);
       }
     } catch (err) {
       console.error('获取历史记录失败:', err);
@@ -90,6 +104,19 @@ export default function HistoryPage() {
               </div>
             );
           })}
+
+          {/* 加载更多 */}
+          {hasMore && (
+            <div className="text-center py-3">
+              <button
+                onClick={() => fetchHistory(page + 1)}
+                disabled={loading}
+                className="px-6 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              >
+                {loading ? '加载中...' : `加载更多 (${records.length}/${total})`}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

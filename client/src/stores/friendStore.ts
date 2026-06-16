@@ -11,6 +11,7 @@ interface FriendStore {
   setRequests: (requests: FriendRequestInfo[]) => void;
   removeRequest: (requestId: string) => void;
   updateFriendStatus: (userId: string, status: string) => void;
+  reset: () => void;
 }
 
 export const useFriendStore = create<FriendStore>((set) => ({
@@ -31,4 +32,5 @@ export const useFriendStore = create<FriendStore>((set) => ({
       f.userId === userId ? { ...f, status: status as any } : f
     ),
   })),
+  reset: () => set({ friends: [], requests: [] }),
 }));

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '../../stores/gameStore';
+import { useAuthStore } from '../../stores/authStore';
 import { getSocket } from '../../services/socket';
 import { Move, PlayerColor } from 'shared';
 
@@ -23,7 +24,8 @@ const PROMOTION_LABELS: Record<string, string> = {
 
 export default function ChessBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { boardState, currentPlayer, lastMove, gameOver } = useGameStore();
+  const { boardState, currentPlayer, lastMove, gameOver, currentRoom } = useGameStore();
+  const user = useAuthStore((s) => s.user);
   const [selectedPos, setSelectedPos] = useState<[number, number] | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{
     fromRow: number;
@@ -31,7 +33,16 @@ export default function ChessBoard() {
     toRow: number;
     toCol: number;
     piece: string;
+    capturedPiece?: string;
   } | null>(null);
+
+  // 对手走棋后清除选中的棋子
+  useEffect(() => {
+    setSelectedPos(null);
+  }, [boardState?.moveCount]);
+
+  // 获取当前用户执棋颜色
+  const myColor = currentRoom?.players.find(p => p.userId === user?.id)?.color ?? null;
 
   const drawBoard = useCallback(() => {
     const canvas = canvasRef.current;
@@ -87,6 +98,23 @@ export default function ChessBoard() {
       ctx.fillRect(PADDING + sc * CELL_SIZE, PADDING + sr * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     }
 
+    // 将军高亮：被将军的王闪烁红框
+    if (boardState?.inCheck) {
+      const checkedColor = boardState.inCheck;
+      const kingPiece = checkedColor === 'WHITE' ? 'K' : 'k';
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (boardState.board[r][c] === kingPiece) {
+            const kx = PADDING + c * CELL_SIZE + CELL_SIZE / 2;
+            const ky = PADDING + r * CELL_SIZE + CELL_SIZE / 2;
+            ctx.strokeStyle = '#e00';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(kx - CELL_SIZE / 2 + 2, ky - CELL_SIZE / 2 + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+          }
+        }
+      }
+    }
+
     // 棋子
     if (!boardState?.board) return;
     ctx.font = `${PIECE_SIZE * 2}px serif`;
@@ -129,6 +157,7 @@ export default function ChessBoard() {
       to: { row: pendingPromotion.toRow, col: pendingPromotion.toCol },
       piece: pendingPromotion.piece,
       promotion,
+      captured: pendingPromotion.capturedPiece || undefined,
     };
 
     const socket = getSocket();
@@ -143,6 +172,8 @@ export default function ChessBoard() {
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (gameOver || pendingPromotion) return;
+    // 检查回合：只有轮到己方时才能操作
+    if (!currentPlayer || !myColor || currentPlayer !== myColor) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -153,10 +184,14 @@ export default function ChessBoard() {
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
-    const col = Math.floor((x - PADDING) / CELL_SIZE);
-    const row = Math.floor((y - PADDING) / CELL_SIZE);
+    const colFloat = (x - PADDING) / CELL_SIZE;
+    const rowFloat = (y - PADDING) / CELL_SIZE;
+    const col = Math.floor(colFloat);
+    const row = Math.floor(rowFloat);
 
     if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) return;
+    // 近距检查：点击必须在格子范围内
+    if (colFloat < -0.1 || rowFloat < -0.1 || colFloat > SIZE || rowFloat > SIZE) return;
 
     if (!selectedPos) {
       // 选择棋子
@@ -201,6 +236,7 @@ export default function ChessBoard() {
             toRow: row,
             toCol: col,
             piece: piece!,
+            capturedPiece: targetPiece || undefined,
           });
           return;
         }

@@ -89,8 +89,8 @@ export class AuthService {
 
     logger.info(`User ${user.id} (${user.nickname}) logged in via ${platform}`);
 
-    // 签发 JWT
-    const tokens = signToken({ userId: user.id, nickname: user.nickname });
+    // 签发 JWT (包含 tokenVersion 用于撤销旧 token)
+    const tokens = signToken({ userId: user.id, nickname: user.nickname, tokenVersion: user.tokenVersion });
 
     return {
       token: tokens.token,
@@ -106,7 +106,7 @@ export class AuthService {
   }
 
   /**
-   * 刷新 Token
+   * 刷新 Token — 使用 tokenVersion 轮换机制防止重复使用
    */
   async refreshToken(refreshToken: string) {
     const payload = verifyRefreshToken(refreshToken);
@@ -116,7 +116,18 @@ export class AuthService {
       throw new Error('用户不存在');
     }
 
-    const tokens = signToken({ userId: user.id, nickname: user.nickname });
+    // 验证 tokenVersion: 如果 token 中的版本与数据库不一致，说明该 refreshToken 已被使用过
+    if (payload.tokenVersion !== undefined && payload.tokenVersion !== user.tokenVersion) {
+      throw new Error('RefreshToken已被使用，请重新登录');
+    }
+
+    // 递增 tokenVersion，使旧 token 立即失效
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { tokenVersion: user.tokenVersion + 1 },
+    });
+
+    const tokens = signToken({ userId: user.id, nickname: user.nickname, tokenVersion: updatedUser.tokenVersion });
 
     return {
       token: tokens.token,

@@ -14,6 +14,9 @@ interface GameStore {
   // 大厅
   roomList: GameRoomInfo[];
 
+  // 抽王八配置
+  wangbaDrawMode: string;
+
   // Actions
   setCurrentRoom: (room: GameRoomInfo | null) => void;
   setBoardState: (state: BoardState) => void;
@@ -23,6 +26,7 @@ interface GameStore {
   setLastMove: (move: { from: [number, number]; to: [number, number] } | null) => void;
   setGameOver: (result: { winner: PlayerColor | null; reason: string } | null) => void;
   setRoomList: (rooms: GameRoomInfo[]) => void;
+  setWangbaDrawMode: (mode: string) => void;
   resetGame: () => void;
 }
 
@@ -35,6 +39,7 @@ export const useGameStore = create<GameStore>((set) => ({
   lastMove: null,
   gameOver: null,
   roomList: [],
+  wangbaDrawMode: 'neighbor',
 
   setCurrentRoom: (room) => set({ currentRoom: room }),
   setBoardState: (state) => set({ boardState: state }),
@@ -44,6 +49,7 @@ export const useGameStore = create<GameStore>((set) => ({
   setLastMove: (move) => set({ lastMove: move }),
   setGameOver: (result) => set({ gameOver: result }),
   setRoomList: (rooms) => set({ roomList: rooms }),
+  setWangbaDrawMode: (mode) => set({ wangbaDrawMode: mode }),
   resetGame: () => set({
     boardState: null,
     currentPlayer: null,
@@ -51,5 +57,8 @@ export const useGameStore = create<GameStore>((set) => ({
     legalMoves: [],
     lastMove: null,
     gameOver: null,
+    currentRoom: null,
+    roomList: [],
+    wangbaDrawMode: 'neighbor',
   }),
 }));

@@ -9,9 +9,33 @@ import { ERROR_CODES } from 'shared';
 const router = Router();
 const prisma = new PrismaClient();
 
+// 简易频率限制: IP → { count, resetAt }
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW = 60_000; // 1 分钟窗口
+const RATE_LIMIT_MAX = 10;         // 每个窗口最多 10 次
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
+
 // POST /api/auth/dev/login — 开发模式登录 (无需真实的 OAuth)
 router.post('/dev/login', async (req: Request, res: Response) => {
   try {
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+      throw new AppError(429, 'RATE_LIMITED', '请求过于频繁，请稍后再试');
+    }
+
     const { platform } = req.body; // 'wechat' | 'qq'
     const nickname = platform === 'wechat' ? '微信用户' : platform === 'qq' ? 'QQ用户' : '开发用户';
     const devOpenId = `dev_${platform || 'test'}_${Date.now()}`;
@@ -35,7 +59,7 @@ router.post('/dev/login', async (req: Request, res: Response) => {
       });
     }
 
-    const tokens = signToken({ userId: user.id, nickname: user.nickname });
+    const tokens = signToken({ userId: user.id, nickname: user.nickname, tokenVersion: user.tokenVersion });
 
     res.json({
       success: true,
@@ -120,10 +144,22 @@ router.post('/register', async (req: Request, res: Response) => {
       throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '邮箱格式不正确');
     }
 
-    // 验证密码长度
-    if (password.length < 6) {
-      throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '密码至少6位');
-    }
+    // 验证昵称格式
+const trimmedNickname = nickname.trim();
+if (trimmedNickname.length < 2 || trimmedNickname.length > 20) {
+  throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '昵称长度需在2-20个字符之间');
+}
+if (/<[^>]*>/.test(trimmedNickname)) {
+  throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '昵称包含非法字符');
+}
+
+// 验证密码强度 (至少8位，含字母和数字)
+if (password.length < 8) {
+  throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '密码至少8位');
+}
+if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+  throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '密码需包含字母和数字');
+}
 
     // 检查邮箱是否已注册
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -145,7 +181,7 @@ router.post('/register', async (req: Request, res: Response) => {
       },
     });
 
-    const tokens = signToken({ userId: user.id, nickname: user.nickname });
+    const tokens = signToken({ userId: user.id, nickname: user.nickname, tokenVersion: user.tokenVersion });
 
     res.json({
       success: true,
@@ -193,7 +229,7 @@ router.post('/login', async (req: Request, res: Response) => {
       data: { status: UserStatus.ONLINE },
     });
 
-    const tokens = signToken({ userId: user.id, nickname: user.nickname });
+    const tokens = signToken({ userId: user.id, nickname: user.nickname, tokenVersion: user.tokenVersion });
 
     res.json({
       success: true,

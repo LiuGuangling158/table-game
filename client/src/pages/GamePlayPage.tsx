@@ -6,17 +6,19 @@ import { getSocket } from '../services/socket';
 import GomokuBoard from '../games/gomoku/GomokuBoard';
 import XiangqiBoard from '../games/xiangqi/XiangqiBoard';
 import ChessBoard from '../games/chess/ChessBoard';
+import WangbaBoard from '../games/wangba/WangbaBoard';
 import { GameType } from 'shared';
 
 export default function GamePlayPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { currentRoom, boardState, currentPlayer, gameOver } = useGameStore();
+  const { currentRoom, boardState, currentPlayer, gameOver, wangbaDrawMode } = useGameStore();
   const { sendMove, resign, requestDraw, respondDraw, leaveRoom, initGame } = useGameRoom(roomId || '');
   const [chatMessages, setChatMessages] = useState<Array<{ userId: string; nickname: string; message: string }>>([]);
   const [chatInput, setChatInput] = useState('');
   const [showDrawRequest, setShowDrawRequest] = useState(false);
   const [opponentDrawRequest, setOpponentDrawRequest] = useState(false);
+  const [wangbaResult, setWangbaResult] = useState<{ loserId: string; winnerIds: string[] } | null>(null);
 
   const gameType = currentRoom?.gameType;
 
@@ -31,7 +33,7 @@ export default function GamePlayPage() {
   // 如果没有 gameType，说明是直接访问 /play/:roomId，需要请求房间信息和初始化游戏
   useEffect(() => {
     if (!roomId || !gameType) return;
-    initGame(gameType);
+    initGame(gameType, wangbaDrawMode);
   }, [roomId, gameType]);
 
   useEffect(() => {
@@ -47,15 +49,27 @@ export default function GamePlayPage() {
       if (!data.accept) alert('对方拒绝了求和');
       setShowDrawRequest(false);
     };
+    const handlePlayerDisconnected = (data: { userId: string; nickname: string }) => {
+      alert(`${data.nickname} 已断开连接，等待重连...`);
+    };
+    const handleGameOverWangba = (data: any) => {
+      if (data.loserId) {
+        setWangbaResult({ loserId: data.loserId, winnerIds: data.winnerIds || [] });
+      }
+    };
 
     socket.on('game:chat', handleChat);
     socket.on('game:draw_request', handleDrawReq);
     socket.on('game:draw_response', handleDrawRes);
+    socket.on('game:player_disconnected', handlePlayerDisconnected);
+    socket.on('game:over', handleGameOverWangba);
 
     return () => {
       socket.off('game:chat', handleChat);
       socket.off('game:draw_request', handleDrawReq);
       socket.off('game:draw_response', handleDrawRes);
+      socket.off('game:player_disconnected', handlePlayerDisconnected);
+      socket.off('game:over', handleGameOverWangba);
     };
   }, [roomId]);
 
@@ -104,6 +118,7 @@ export default function GamePlayPage() {
         {gameType === GameType.GOMOKU && <GomokuBoard />}
         {gameType === GameType.XIANGQI && <XiangqiBoard />}
         {gameType === GameType.CHESS && <ChessBoard />}
+        {gameType === GameType.WANGBA && <WangbaBoard />}
         {!gameType && (
           <div className="text-center p-12 text-gray-400">
             <p>等待游戏开始...</p>
@@ -116,18 +131,31 @@ export default function GamePlayPage() {
         {/* 游戏信息 */}
         <div className="bg-white rounded-xl shadow-sm border p-4">
           <h3 className="font-medium text-gray-800 mb-3">
-            {gameType === GameType.GOMOKU ? '五子棋' : gameType === GameType.XIANGQI ? '中国象棋' : '国际象棋'}
+            {gameType === GameType.GOMOKU ? '五子棋' : gameType === GameType.XIANGQI ? '中国象棋' : gameType === GameType.CHESS ? '国际象棋' : gameType === GameType.WANGBA ? '抽王八' : '游戏'}
           </h3>
 
-          {gameOver ? (
+          {(gameOver || wangbaResult) ? (
             <div className="p-4 bg-yellow-50 rounded-xl text-center">
               <p className="text-lg font-bold text-yellow-700">游戏结束!</p>
-              <p className="text-sm text-yellow-600 mt-1">
-                {gameOver.winner
-                  ? `${getPlayerColorName(gameOver.winner)} 获胜`
-                  : '平局'}
-              </p>
-              <p className="text-xs text-yellow-500 mt-1">原因: {gameOver.reason}</p>
+              {wangbaResult ? (
+                <>
+                  <p className="text-sm text-yellow-600 mt-1">
+                    🐢 王八: {currentRoom?.players.find(p => p.userId === wangbaResult.loserId)?.nickname || '?'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    赢家: {wangbaResult.winnerIds.map(id => currentRoom?.players.find(p => p.userId === id)?.nickname || '?').join(', ')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-yellow-600 mt-1">
+                    {gameOver?.winner
+                      ? `${getPlayerColorName(gameOver.winner)} 获胜`
+                      : '平局'}
+                  </p>
+                  <p className="text-xs text-yellow-500 mt-1">原因: {gameOver?.reason}</p>
+                </>
+              )}
               <button
                 onClick={() => navigate(`/room/${roomId}`)}
                 className="mt-3 px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600"

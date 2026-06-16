@@ -90,8 +90,25 @@ router.get('/rooms/:id', async (req, res: Response) => {
 
 // POST /api/games/rooms/:id/join — 加入房间
 router.post('/rooms/:id/join', async (req, res: Response) => {
-  const room = await gameService.joinRoom(req.params.id, req.user!.userId);
-  res.json({ success: true, data: room });
+  const room: any = await gameService.joinRoom(req.params.id, req.user!.userId);
+  res.json({
+    success: true,
+    data: {
+      id: room.id,
+      gameType: room.gameType,
+      status: room.status,
+      maxPlayers: room.maxPlayers,
+      hostId: room.hostId,
+      players: room.players.map((p: any) => ({
+        userId: p.user?.id || p.userId,
+        nickname: p.user?.nickname || '',
+        avatar: p.user?.avatar || null,
+        color: p.color,
+        ready: p.ready,
+      })),
+      createdAt: room.createdAt?.toISOString?.() || room.createdAt,
+    },
+  });
 });
 
 // POST /api/games/rooms/:id/leave — 离开房间

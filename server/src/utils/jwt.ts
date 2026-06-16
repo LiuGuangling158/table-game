@@ -4,6 +4,7 @@ import { config } from '../config';
 export interface TokenPayload {
   userId: string;
   nickname: string;
+  tokenVersion?: number;
 }
 
 export function signToken(payload: TokenPayload): { token: string; refreshToken: string } {

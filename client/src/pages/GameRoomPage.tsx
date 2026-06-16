@@ -22,14 +22,22 @@ export default function GameRoomPage() {
     if (!roomId || !socket) return;
 
     // 加入 Socket 房间
-    socket.emit('room:join', { roomId });
+    const joinRoom = () => {
+      socket.emit('room:join', { roomId });
+    };
+    joinRoom();
 
-    // 获取房间信息
+    // 获取房间信息并同步本地状态
     const fetchRoom = async () => {
       try {
         const { data } = await api.get(`/games/rooms/${roomId}`);
         if (data.success) {
           setCurrentRoom(data.data);
+          // 同步服务端的 ready 状态到本地
+          const me = data.data.players.find((p: any) => p.userId === user?.id);
+          if (me) {
+            setReady(me.ready);
+          }
         }
       } catch (err) {
         console.error('获取房间信息失败:', err);
@@ -38,25 +46,14 @@ export default function GameRoomPage() {
     };
     fetchRoom();
 
-    // 监听房间事件
-    socket.on('room:joined', (data: any) => {
+    // 监听房间事件 — 使用命名函数引用以支持精确移除
+    const onJoined = (data: any) => {
       setCurrentRoom(data.room);
-    });
-
-    socket.on('room:player_joined', () => {
+    };
+    const onRoomUpdate = () => {
       fetchRoom();
-    });
-
-    socket.on('room:player_left', () => {
-      fetchRoom();
-    });
-
-    socket.on('room:player_ready', (data: any) => {
-      fetchRoom();
-    });
-
-    socket.on('room:all_ready', (data: { countdown: number }) => {
-      // 清理之前的倒计时（如果有）
+    };
+    const onAllReady = (data: { countdown: number }) => {
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
       }
@@ -73,29 +70,50 @@ export default function GameRoomPage() {
           return prev - 1;
         });
       }, 1000);
-    });
-
-    socket.on('room:game_start', (data: { roomId: string; gameType: string }) => {
-      // 跳转到游戏页面（游戏初始化由 GamePlayPage 负责）
-      // 清理倒计时
+    };
+    const onCountdownCancelled = () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+      setCountdown(null);
+    };
+    const onGameStart = (data: { roomId: string; gameType: string }) => {
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
       }
       navigate(`/play/${roomId}`);
-    });
+    };
+
+    // Bug 35: Socket 重连时重新加入房间
+    const onReconnect = () => {
+      joinRoom();
+      fetchRoom();
+    };
+
+    socket.on('room:joined', onJoined);
+    socket.on('room:player_joined', onRoomUpdate);
+    socket.on('room:player_left', onRoomUpdate);
+    socket.on('room:player_ready', onRoomUpdate);
+    socket.on('room:all_ready', onAllReady);
+    socket.on('room:countdown_cancelled', onCountdownCancelled);
+    socket.on('room:game_start', onGameStart);
+    socket.on('connect', onReconnect);
 
     return () => {
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
       }
-      socket.off('room:joined');
-      socket.off('room:player_joined');
-      socket.off('room:player_left');
-      socket.off('room:player_ready');
-      socket.off('room:all_ready');
-      socket.off('room:game_start');
+      socket.off('room:joined', onJoined);
+      socket.off('room:player_joined', onRoomUpdate);
+      socket.off('room:player_left', onRoomUpdate);
+      socket.off('room:player_ready', onRoomUpdate);
+      socket.off('room:all_ready', onAllReady);
+      socket.off('room:countdown_cancelled', onCountdownCancelled);
+      socket.off('room:game_start', onGameStart);
+      socket.off('connect', onReconnect);
     };
   }, [roomId, socket]);
 
@@ -157,12 +175,21 @@ export default function GameRoomPage() {
             <div key={player.userId} className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-lg">
-                  {player.avatar || (idx === 0 ? '⚫' : '⚪')}
+                  {player.avatar || (() => {
+                    const icons = ['🔴', '🔵', '🟢', '🟡', '🟣'];
+                    return icons[idx] || '👤';
+                  })()}
                 </div>
                 <div>
                   <p className="font-medium">{player.nickname}</p>
                   <p className="text-xs text-gray-500">
-                    {player.color === 'BLACK' ? '黑方' : player.color === 'WHITE' ? '白方' : player.color === 'RED' ? '红方' : '蓝方'}
+                    {(() => {
+                      const labelMap: Record<string, string> = {
+                        BLACK: '黑方', WHITE: '白方', RED: '红方', BLUE: '蓝方',
+                        GREEN: '绿方', YELLOW: '黄方', PURPLE: '紫方',
+                      };
+                      return labelMap[player.color] || player.color;
+                    })()}
                     {currentRoom.hostId === player.userId && ' (房主)'}
                   </p>
                 </div>

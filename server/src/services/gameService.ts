@@ -158,6 +158,18 @@ export class GameService {
         where: { id: roomId },
         data: { status: RoomStatus.CANCELLED },
       });
+    } else if (room.hostId === userId) {
+      // 房主离开时，将房主转移给剩余的第一个玩家
+      const nextPlayer = await prisma.gamePlayer.findFirst({
+        where: { roomId },
+        orderBy: { joinedAt: 'asc' },
+      });
+      if (nextPlayer) {
+        await prisma.gameRoom.update({
+          where: { id: roomId },
+          data: { hostId: nextPlayer.userId },
+        });
+      }
     }
 
     return { success: true };
@@ -243,12 +255,18 @@ export class GameService {
       winnerId = winner?.userId || null;
     }
 
+    // 计算游戏时长（如果未传入）
+    const endedAt = new Date();
+    if (duration === undefined && room.startedAt) {
+      duration = Math.floor((endedAt.getTime() - room.startedAt.getTime()) / 1000);
+    }
+
     // 更新房间状态
     await prisma.gameRoom.update({
       where: { id: roomId },
       data: {
         status: RoomStatus.FINISHED,
-        endedAt: new Date(),
+        endedAt,
       },
     });
 
@@ -301,24 +319,15 @@ export class GameService {
   private getFirstColor(gameType: GameType): PlayerColor {
     switch (gameType) {
       case GameType.GOMOKU:
-      case GameType.CHESS:
         return PlayerColor.BLACK;
+      case GameType.CHESS:
+        return PlayerColor.WHITE;  // Chess 白方先走，房主执白
       case GameType.XIANGQI:
         return PlayerColor.RED;
+      case GameType.WANGBA:
+        return PlayerColor.RED;    // 抽王八: 房主为第一位玩家
       default:
         return PlayerColor.BLACK;
-    }
-  }
-
-  private getAvailableColor(gameType: GameType, usedColors: PlayerColor[]): PlayerColor {
-    switch (gameType) {
-      case GameType.GOMOKU:
-      case GameType.CHESS:
-        return usedColors.includes(PlayerColor.BLACK) ? PlayerColor.WHITE : PlayerColor.BLACK;
-      case GameType.XIANGQI:
-        return usedColors.includes(PlayerColor.RED) ? PlayerColor.BLUE : PlayerColor.RED;
-      default:
-        return PlayerColor.WHITE;
     }
   }
 
@@ -329,6 +338,9 @@ export class GameService {
         return [PlayerColor.BLACK, PlayerColor.WHITE];
       case GameType.XIANGQI:
         return [PlayerColor.RED, PlayerColor.BLUE];
+      case GameType.WANGBA:
+        // 支持 2-4 人，按顺序分配颜色
+        return [PlayerColor.RED, PlayerColor.BLUE, PlayerColor.GREEN, PlayerColor.YELLOW];
       default:
         return [PlayerColor.BLACK, PlayerColor.WHITE];
     }

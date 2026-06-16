@@ -103,6 +103,9 @@ export class XiangqiEngine extends GameEngine {
 
   applyMove(state: BoardState, move: Move): BoardState {
     const piece = this.getPiece(state.board, move.from);
+    if (!piece) {
+      throw new Error(`XiangqiEngine.applyMove: 位置 (${move.from.row},${move.from.col}) 无棋子`);
+    }
     let newBoard = this.setPiece(state.board, move.from, null);
     newBoard = this.setPiece(newBoard, move.to, piece);
 
@@ -112,6 +115,7 @@ export class XiangqiEngine extends GameEngine {
     const newState: BoardState = {
       ...this.switchPlayer(state),
       board: newBoard,
+      lastMove: { from: move.from, to: move.to },
     };
 
     if (this.isInCheck(newState, opponentColor)) {
@@ -398,9 +402,9 @@ export class XiangqiEngine extends GameEngine {
           const from = { row: r, col: c };
           const legalMoves = this.getLegalMoves(state, from);
           for (const to of legalMoves) {
-            const move: Move = { from, to, piece };
-            // 模拟走法后用 validateMove 中的完整逻辑
-            if (this.validateMove(state, move).valid) {
+            // 直接模拟走法并检查自将/照面，避免 validateMove 重复调用 getLegalMoves
+            const simState = this.simulateMove(state, { from, to, piece });
+            if (!this.isInCheck(simState, color) && !this.kingsAreFacing(simState)) {
               return false;
             }
           }

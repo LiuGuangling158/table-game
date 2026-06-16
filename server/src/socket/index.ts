@@ -6,11 +6,15 @@ import { logger } from '../utils/logger';
 import { handleConnection } from './connectionHandler';
 import { handleLobby } from './lobbyHandler';
 import { handleGameRoom } from './gameRoomHandler';
-import { handleGame } from './gameHandler';
+import { handleGame, activeGames } from './gameHandler';
 import { handleChat } from './chatHandler';
 
 // 存储在线用户的 socket 映射: userId -> Set<socketId>
 export const onlineUsers = new Map<string, Set<string>>();
+
+// 存储 io 实例供路由等模块使用
+let _io: Server | null = null;
+export function getIO(): Server | null { return _io; }
 
 // 存储 socketId -> userId 的映射
 export const socketToUser = new Map<string, { userId: string; nickname: string }>();
@@ -25,6 +29,8 @@ export function initSocket(httpServer: HttpServer): Server {
     pingTimeout: 60000,
     pingInterval: 25000,
   });
+
+  _io = io;
 
   // 认证中间件
   io.use(async (socket, next) => {
@@ -71,6 +77,18 @@ export function initSocket(httpServer: HttpServer): Server {
           onlineUsers.delete(user.userId);
           // 通知好友离线
           io.emit('user:offline', { userId: user.userId });
+
+          // 检查该用户是否在活跃游戏中，通知对手
+          for (const [roomId, gameData] of activeGames) {
+            const isPlayer = [...gameData.playerUsers.values()].includes(user.userId);
+            if (isPlayer) {
+              io.to(roomId).emit('game:player_disconnected', {
+                userId: user.userId,
+                nickname: user.nickname,
+              });
+              logger.info(`玩家断线通知: ${roomId}, 用户: ${user.userId}`);
+            }
+          }
         }
       }
       socketToUser.delete(socket.id);

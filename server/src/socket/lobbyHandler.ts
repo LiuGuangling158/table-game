@@ -16,9 +16,9 @@ export function handleLobby(io: Server, socket: Socket): void {
         maxPlayers: r.maxPlayers,
         hostId: r.hostId,
         players: r.players.map(p => ({
-          userId: p.user.id,
-          nickname: p.user.nickname,
-          avatar: p.user.avatar,
+          userId: p.user?.id || p.userId,
+          nickname: p.user?.nickname || '',
+          avatar: p.user?.avatar || null,
           color: p.color,
           ready: p.ready,
         })),

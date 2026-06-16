@@ -1,9 +1,10 @@
 import { io, Socket } from 'socket.io-client';
+import { useAuthStore } from '../stores/authStore';
 
 let socket: Socket | null = null;
 
 export function connectSocket(): Socket {
-  const token = localStorage.getItem('token');
+  const token = useAuthStore.getState().token;
 
   // 如果已有连接且 token 未变，直接返回
   if (socket?.connected && (socket as any)._authToken === token) {

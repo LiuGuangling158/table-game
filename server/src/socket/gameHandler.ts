@@ -294,7 +294,7 @@ export function handleGame(io: Server, socket: Socket): void {
   });
 
   // 获取游戏状态 (进入房间时 / 断线重连)
-  socket.on('game:get_state', (data: { roomId: string }) => {
+  socket.on('game:get_state', async (data: { roomId: string }) => {
     const gameData = activeGames.get(data.roomId);
     if (!gameData) {
       // 检查是否是抽王八游戏
@@ -303,7 +303,18 @@ export function handleGame(io: Server, socket: Socket): void {
         emitWangbaSync(io, socket, data.roomId, wbData, user.userId);
         return;
       }
-      socket.emit('notify:error', { code: 'GAME_ERROR', message: '没有正在进行的游戏' });
+
+      // 检查房间状态：如果房间在数据库中也是 WAITING，说明游戏还没开始，静默返回
+      // 只有房间状态为 PLAYING 但内存中无游戏记录才是异常（服务重启导致游戏丢失）
+      try {
+        const room = await gameService.getRoom(data.roomId);
+        if (room && room.status === 'PLAYING') {
+          socket.emit('notify:error', { code: 'GAME_ERROR', message: '游戏已结束或不存在' });
+        }
+        // WAITING 状态：游戏尚未初始化，正常情况，不报错
+      } catch {
+        // 房间查询失败，忽略
+      }
       return;
     }
 

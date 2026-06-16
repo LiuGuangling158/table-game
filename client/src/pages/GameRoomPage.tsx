@@ -17,6 +17,10 @@ export default function GameRoomPage() {
   const [ready, setReady] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 标记：游戏开始跳转时跳过 cleanup 中的 room:leave
+  const skipLeaveRef = useRef(false);
+  // 标记：是否已确认加入房间 (防止 StrictMode 双重挂载时误发 room:leave)
+  const hasJoinedRef = useRef(false);
 
   useEffect(() => {
     if (!roomId || !socket) return;
@@ -36,6 +40,7 @@ export default function GameRoomPage() {
           // 同步服务端的 ready 状态到本地
           const me = data.data.players.find((p: any) => p.userId === user?.id);
           if (me) {
+            hasJoinedRef.current = true;
             setReady(me.ready);
           }
         }
@@ -48,6 +53,7 @@ export default function GameRoomPage() {
 
     // 监听房间事件 — 使用命名函数引用以支持精确移除
     const onJoined = (data: any) => {
+      hasJoinedRef.current = true;
       setCurrentRoom(data.room);
     };
     const onRoomUpdate = () => {
@@ -83,6 +89,7 @@ export default function GameRoomPage() {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
       }
+      skipLeaveRef.current = true;
       navigate(`/play/${roomId}`);
     };
 
@@ -114,6 +121,11 @@ export default function GameRoomPage() {
       socket.off('room:countdown_cancelled', onCountdownCancelled);
       socket.off('room:game_start', onGameStart);
       socket.off('connect', onReconnect);
+
+      // 离开页面即离开房间 (需已确认加入 + 游戏开始跳转除外)
+      if (hasJoinedRef.current && !skipLeaveRef.current) {
+        socket.emit('room:leave', { roomId });
+      }
     };
   }, [roomId, socket]);
 
@@ -137,6 +149,7 @@ export default function GameRoomPage() {
   };
 
   const handleLeave = () => {
+    skipLeaveRef.current = true;
     socket?.emit('room:leave', { roomId });
     resetGame();
     navigate('/');

@@ -90,11 +90,11 @@ export function useGameRoom(roomId: string) {
       }, 300);
     };
 
-    // Socket 已连接：直接注册事件并请求状态
+    // Socket 已连接：直接注册事件 (游戏状态由 game:init / game:wangba_init 提供)
     if (socket.connected) {
       registeredRef.current = true;
       registerEvents();
-      socket.emit('game:get_state', { roomId });
+      // 注意: 不在此处 emit game:get_state，避免在游戏初始化前发送请求导致误报警告
     } else {
       // Socket 尚未连接：等待 connect 事件触发后再注册
       registeredRef.current = true;

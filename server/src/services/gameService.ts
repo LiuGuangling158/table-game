@@ -68,9 +68,16 @@ export class GameService {
    * 加入房间 — 防御式颜色分配，逐个尝试避免冲突
    */
   async joinRoom(roomId: string, userId: string, preferredColor?: PlayerColor) {
+    // 防御式查询：始终 include user，避免下游 formatRoomInfo 访问 p.user.id 崩溃
     const room = await prisma.gameRoom.findUnique({
       where: { id: roomId },
-      include: { players: true },
+      include: {
+        players: {
+          include: {
+            user: { select: { id: true, nickname: true, avatar: true } },
+          },
+        },
+      },
     });
 
     if (!room) {
@@ -131,7 +138,7 @@ export class GameService {
   }
 
   /**
-   * 离开房间
+   * 离开房间 (幂等操作: 重复调用不会报错)
    */
   async leaveRoom(roomId: string, userId: string) {
     const room = await prisma.gameRoom.findUnique({
@@ -140,24 +147,32 @@ export class GameService {
     });
 
     if (!room) {
-      throw new AppError(404, ERROR_CODES.ROOM_NOT_FOUND, '房间不存在');
+      // 房间不存在，视为已离开
+      return { success: true };
     }
 
     const player = room.players.find(p => p.userId === userId);
     if (!player) {
-      throw new AppError(400, ERROR_CODES.NOT_IN_ROOM, '不在房间中');
+      // 玩家不在房间中，视为已离开 (幂等)
+      return { success: true };
     }
 
     // 删除玩家
     await prisma.gamePlayer.delete({ where: { id: player.id } });
 
-    // 如果房间空了，取消房间
+    // 检查剩余玩家数
     const remainingPlayers = await prisma.gamePlayer.count({ where: { roomId } });
     if (remainingPlayers === 0) {
-      await prisma.gameRoom.update({
-        where: { id: roomId },
-        data: { status: RoomStatus.CANCELLED },
-      });
+      if (room.status === RoomStatus.WAITING) {
+        // WAITING 空房间直接删除 (Cascade 自动清理关联数据)
+        await prisma.gameRoom.delete({ where: { id: roomId } });
+      } else {
+        // 非 WAITING 房间保留记录，标记为取消
+        await prisma.gameRoom.update({
+          where: { id: roomId },
+          data: { status: RoomStatus.CANCELLED },
+        });
+      }
     } else if (room.hostId === userId) {
       // 房主离开时，将房主转移给剩余的第一个玩家
       const nextPlayer = await prisma.gamePlayer.findFirst({
@@ -312,6 +327,21 @@ export class GameService {
         },
       },
     });
+  }
+
+  /**
+   * 清理僵尸房间 — 服务器启动时调用
+   * 将所有 WAITING 状态的房间标记为 CANCELLED，因为上次服务器会话已经结束
+   */
+  async cleanupStaleRooms() {
+    const result = await prisma.gameRoom.updateMany({
+      where: { status: RoomStatus.WAITING },
+      data: { status: RoomStatus.CANCELLED },
+    });
+    if (result.count > 0) {
+      console.log(`[Startup] 已清理 ${result.count} 个僵尸WAITING房间`);
+    }
+    return result.count;
   }
 
   // ==================== 辅助方法 ====================

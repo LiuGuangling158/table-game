@@ -12,6 +12,9 @@ const GAME_LIST = [
     icon: '⚫',
     description: '经典五子连珠，简单易上手',
     players: 2,
+    gradient: 'from-emerald-400 to-teal-500',
+    bg: 'from-emerald-50 to-teal-50',
+    accent: '#10b981',
   },
   {
     type: GameType.XIANGQI,
@@ -19,6 +22,9 @@ const GAME_LIST = [
     icon: '🏯',
     description: '楚河汉界，运筹帷幄',
     players: 2,
+    gradient: 'from-red-400 to-rose-500',
+    bg: 'from-red-50 to-rose-50',
+    accent: '#ef4444',
   },
   {
     type: GameType.CHESS,
@@ -26,6 +32,9 @@ const GAME_LIST = [
     icon: '♟️',
     description: '经典国际象棋对弈',
     players: 2,
+    gradient: 'from-slate-500 to-gray-600',
+    bg: 'from-slate-50 to-gray-50',
+    accent: '#64748b',
   },
   {
     type: GameType.WANGBA,
@@ -33,8 +42,15 @@ const GAME_LIST = [
     icon: '🐢',
     description: '配对消牌，谁拿到王八谁输！',
     players: '2-4',
+    gradient: 'from-amber-400 to-orange-500',
+    bg: 'from-amber-50 to-orange-50',
+    accent: '#f59e0b',
   },
 ];
+
+const GAME_ROOM_ICON: Record<string, string> = {
+  GOMOKU: '⚫', XIANGQI: '🏯', CHESS: '♟️', WANGBA: '🐢',
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -47,10 +63,8 @@ export default function HomePage() {
   const socket = getSocket();
 
   useEffect(() => {
-    // 获取房间列表
     fetchRooms();
 
-    // 监听房间列表更新
     if (socket) {
       socket.emit('lobby:get_rooms', {});
 
@@ -90,7 +104,6 @@ export default function HomePage() {
     setCreating(gameType);
     setPlayerSelectGame(null);
     try {
-      // 存储抽牌模式到 gameStore 供 GamePlayPage 使用
       if (drawMode) {
         useGameStore.getState().setWangbaDrawMode(drawMode);
       }
@@ -106,7 +119,6 @@ export default function HomePage() {
   };
 
   const handleGameClick = (gameType: GameType) => {
-    // WANGBA 需要先选择玩家人数
     if (gameType === GameType.WANGBA) {
       setPlayerSelectGame(gameType);
       return;
@@ -123,160 +135,268 @@ export default function HomePage() {
     const isPlaying = room.status === 'PLAYING';
 
     if (isPlaying) {
-      return { label: '观战', disabled: false, reason: '' };
+      return { label: '观战', disabled: false, style: 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50' };
     }
     if (isFull) {
-      return { label: '已满', disabled: true, reason: '房间已满' };
+      return { label: '已满', disabled: true, style: 'text-gray-300 cursor-not-allowed' };
     }
-    return { label: '加入', disabled: false, reason: '' };
+    return { label: '加入', disabled: false, style: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' };
   };
 
   const getRoomStatusBadge = (room: GameRoomInfo) => {
     if (room.status === 'PLAYING') {
-      return <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">游戏中</span>;
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-yellow-500" />
+          </span>
+          游戏中
+        </span>
+      );
     }
-    return <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">等待中</span>;
+    return (
+      <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+        等待中
+      </span>
+    );
   };
 
   return (
-    <div className="space-y-8">
-      {/* 游戏种类 */}
+    <div className="space-y-8 animate-fade-in">
+
+      {/* ========== 游戏种类 ========== */}
       <section>
-        <h2 className="text-xl font-bold text-gray-800 mb-4">选择游戏</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {GAME_LIST.map((game) => (
-            <div
-              key={game.type}
-              className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => handleGameClick(game.type)}
-            >
-              <div className="text-4xl mb-3">{game.icon}</div>
-              <h3 className="text-lg font-semibold text-gray-800">{game.label}</h3>
-              <p className="text-sm text-gray-500 mt-1">{game.description}</p>
-              <button
-                disabled={creating === game.type}
-                className="mt-4 w-full py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+        <div className="flex items-center gap-2 mb-5">
+          <span className="text-lg">🎮</span>
+          <h2 className="text-xl font-bold text-gray-800">选择游戏</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {GAME_LIST.map((game) => {
+            const isWangba = game.type === GameType.WANGBA;
+            return (
+              <div
+                key={game.type}
+                onClick={() => handleGameClick(game.type)}
+                className="group relative bg-white rounded-2xl shadow-sm border border-gray-100
+                  overflow-hidden cursor-pointer transition-all duration-300
+                  hover:shadow-lg hover:-translate-y-1"
               >
-                {creating === game.type ? '创建中...' : game.type === GameType.WANGBA ? '选择人数创建' : '创建房间'}
-              </button>
-            </div>
-          ))}
+                {/* 顶部色条 */}
+                <div className={`h-1.5 bg-gradient-to-r ${game.gradient}`} />
+
+                <div className="p-5">
+                  {/* 图标 + 标签 */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${game.bg}
+                      flex items-center justify-center text-2xl shadow-sm`}>
+                      {game.icon}
+                    </div>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                      typeof game.players === 'string'
+                        ? 'bg-purple-100 text-purple-600'
+                        : 'bg-blue-100 text-blue-600'
+                    }`}>
+                      {typeof game.players === 'string' ? `${game.players}人` : `${game.players}人`}
+                    </span>
+                  </div>
+
+                  {/* 标题 + 描述 */}
+                  <h3 className="text-base font-bold text-gray-800 mb-1">{game.label}</h3>
+                  <p className="text-xs text-gray-500 leading-relaxed">{game.description}</p>
+
+                  {/* 按钮 */}
+                  <button
+                    disabled={creating === game.type}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleGameClick(game.type);
+                    }}
+                    className={`mt-4 w-full py-2.5 rounded-xl text-sm font-semibold
+                      transition-all duration-200 active:scale-[0.98]
+                      ${creating === game.type
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : `bg-gradient-to-r ${game.gradient} text-white shadow-md hover:shadow-lg`
+                      }`}
+                  >
+                    {creating === game.type ? (
+                      <span className="flex items-center justify-center gap-1.5">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        创建中...
+                      </span>
+                    ) : isWangba ? '选择人数创建' : '创建房间'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* 房间列表 */}
+      {/* ========== 房间列表 ========== */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">公开房间</h2>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🏠</span>
+            <h2 className="text-xl font-bold text-gray-800">公开房间</h2>
+            {roomList.length > 0 && (
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                {roomList.length} 个
+              </span>
+            )}
+          </div>
           <button
             onClick={fetchRooms}
-            className="text-sm text-blue-500 hover:text-blue-600"
+            className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors
+              flex items-center gap-1"
           >
-            刷新
+            <span>🔄</span> 刷新
           </button>
         </div>
 
-        {fetchState === 'loading' ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-400 shadow-sm border">
-            <div className="text-4xl mb-3 animate-pulse">🔍</div>
-            <p>加载房间列表...</p>
+        {/* 加载中 */}
+        {fetchState === 'loading' && (
+          <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-gray-100">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
+              <svg className="animate-spin h-6 w-6 text-blue-500" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+            <p className="text-gray-400 font-medium">加载房间列表...</p>
           </div>
-        ) : fetchState === 'error' ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-400 shadow-sm border">
-            <div className="text-4xl mb-3">⚠️</div>
-            <p>加载失败</p>
-            <p className="text-sm mt-1">网络异常，请检查连接</p>
-            <button onClick={fetchRooms} className="mt-3 text-blue-500 text-sm hover:underline">点击重试</button>
+        )}
+
+        {/* 加载失败 */}
+        {fetchState === 'error' && (
+          <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-gray-100">
+            <div className="text-5xl mb-4">⚠️</div>
+            <p className="text-gray-600 font-semibold mb-1">加载失败</p>
+            <p className="text-sm text-gray-400 mb-4">网络异常，请检查连接后重试</p>
+            <button
+              onClick={fetchRooms}
+              className="px-6 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium
+                hover:bg-blue-600 transition-colors"
+            >
+              点击重试
+            </button>
           </div>
-        ) : roomList.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-400 shadow-sm border">
-            <div className="text-4xl mb-3">🏠</div>
-            <p>暂无公开房间</p>
-            <p className="text-sm mt-1">创建一个房间，邀请好友来玩吧！</p>
+        )}
+
+        {/* 空列表 */}
+        {fetchState === 'loaded' && roomList.length === 0 && (
+          <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-gray-100">
+            <div className="text-5xl mb-4">🏠</div>
+            <p className="text-gray-600 font-semibold mb-1">暂无公开房间</p>
+            <p className="text-sm text-gray-400">创建一个房间，邀请好友来玩吧！</p>
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 text-left text-sm text-gray-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">游戏</th>
-                  <th className="px-4 py-3 font-medium">房主</th>
-                  <th className="px-4 py-3 font-medium">玩家</th>
-                  <th className="px-4 py-3 font-medium">状态</th>
-                  <th className="px-4 py-3 font-medium">操作</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {roomList.map((room) => (
-                  <tr key={room.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <span className="font-medium">
-                        {GAME_TYPE_LABELS[room.gameType] || room.gameType}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {room.players[0]?.nickname || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {room.players.length}/{room.maxPlayers}
-                    </td>
-                    <td className="px-4 py-3">
-                      {getRoomStatusBadge(room)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {(() => {
-                        const action = getRoomAction(room);
-                        return (
-                          <button
-                            onClick={() => handleJoinRoom(room.id)}
-                            disabled={action.disabled}
-                            title={action.reason}
-                            className={`text-sm ${
-                              action.disabled
-                                ? 'text-gray-300 cursor-not-allowed'
-                                : action.label === '观战'
-                                  ? 'text-yellow-600 hover:text-yellow-800'
-                                  : 'text-blue-500 hover:text-blue-700'
-                            }`}
-                          >
-                            {action.label}
-                          </button>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        )}
+
+        {/* 房间列表 - 卡片式 */}
+        {fetchState === 'loaded' && roomList.length > 0 && (
+          <div className="space-y-2.5">
+            {roomList.map((room) => {
+              const action = getRoomAction(room);
+              return (
+                <div
+                  key={room.id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-3.5
+                    flex items-center gap-4 flex-wrap transition-all duration-200
+                    hover:shadow-md hover:border-gray-200"
+                >
+                  {/* 游戏图标 */}
+                  <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-xl shrink-0">
+                    {GAME_ROOM_ICON[room.gameType] || '🎮'}
+                  </div>
+
+                  {/* 游戏名 + 房主 */}
+                  <div className="min-w-0 shrink-0" style={{ width: '100px' }}>
+                    <p className="text-sm font-semibold text-gray-800 truncate">
+                      {GAME_TYPE_LABELS[room.gameType] || room.gameType}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">
+                      房主: {room.players[0]?.nickname || '-'}
+                    </p>
+                  </div>
+
+                  {/* 玩家数 */}
+                  <div className="shrink-0 flex items-center gap-1.5">
+                    <span className="text-xs text-gray-400">👥</span>
+                    <span className={`text-sm font-semibold ${
+                      room.players.length >= room.maxPlayers ? 'text-red-500' : 'text-gray-700'
+                    }`}>
+                      {room.players.length}
+                    </span>
+                    <span className="text-xs text-gray-400">/{room.maxPlayers}</span>
+                  </div>
+
+                  {/* 状态 */}
+                  <div className="shrink-0">
+                    {getRoomStatusBadge(room)}
+                  </div>
+
+                  {/* 占位 */}
+                  <div className="flex-1 min-w-0" />
+
+                  {/* 操作按钮 */}
+                  <button
+                    onClick={() => handleJoinRoom(room.id)}
+                    disabled={action.disabled}
+                    className={`shrink-0 px-4 py-1.5 rounded-lg text-sm font-semibold
+                      transition-all duration-200 active:scale-95
+                      ${action.style}`}
+                  >
+                    {action.label}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
 
-      {/* 抽王八人数 + 抽牌模式选择弹窗 */}
+      {/* ========== 抽王八创建弹窗 ========== */}
       {playerSelectGame && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 shadow-xl max-w-md w-full mx-4 space-y-6">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in"
+          onClick={() => setPlayerSelectGame(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 space-y-5 animate-pop-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 标题 */}
             <div className="text-center">
-              <div className="text-5xl mb-3">🐢</div>
-              <h3 className="text-xl font-bold text-gray-800">创建抽王八房间</h3>
+              <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-100
+                flex items-center justify-center text-4xl shadow-sm">
+                🐢
+              </div>
+              <h3 className="text-xl font-extrabold text-gray-800">创建抽王八房间</h3>
+              <p className="text-xs text-gray-400 mt-1">选择玩家人数和抽牌模式</p>
             </div>
 
             {/* 人数选择 */}
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-3 text-center">👥 玩家人数</p>
-              <div className="grid grid-cols-3 gap-3">
+              <p className="text-xs font-semibold text-gray-500 mb-2.5 uppercase tracking-wide text-center">
+                👥 玩家人数
+              </p>
+              <div className="grid grid-cols-3 gap-2.5">
                 {[2, 3, 4].map((count) => (
                   <button
                     key={count}
                     onClick={() => setSelectedPlayerCount(count)}
-                    className={`py-3 rounded-xl border-2 transition-all ${
+                    className={`py-3 rounded-xl border-2 transition-all duration-200 ${
                       selectedPlayerCount === count
-                        ? 'bg-amber-100 border-amber-500 text-amber-800 font-bold'
-                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-amber-50'
+                        ? 'bg-amber-50 border-amber-400 text-amber-800 shadow-sm'
+                        : 'bg-gray-50 border-gray-150 text-gray-500 hover:bg-amber-50/50 hover:border-amber-200'
                     }`}
                   >
-                    <div className="text-xl">{count}人</div>
-                    <div className="text-xs mt-0.5">
+                    <div className="text-xl font-bold">{count}人</div>
+                    <div className="text-[10px] mt-0.5 opacity-70">
                       {count === 2 ? '对决' : count === 3 ? '经典' : '热闹'}
                     </div>
                   </button>
@@ -286,29 +406,31 @@ export default function HomePage() {
 
             {/* 抽牌模式选择 */}
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-3 text-center">🎯 抽牌模式</p>
-              <div className="grid grid-cols-2 gap-3">
+              <p className="text-xs font-semibold text-gray-500 mb-2.5 uppercase tracking-wide text-center">
+                🎯 抽牌模式
+              </p>
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => setSelectedDrawMode('neighbor')}
-                  className={`py-4 rounded-xl border-2 transition-all text-center ${
+                  className={`py-3.5 rounded-xl border-2 transition-all duration-200 ${
                     selectedDrawMode === 'neighbor'
-                      ? 'bg-blue-100 border-blue-500 text-blue-800 font-bold'
-                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-blue-50'
+                      ? 'bg-blue-50 border-blue-400 text-blue-800 shadow-sm'
+                      : 'bg-gray-50 border-gray-150 text-gray-500 hover:bg-blue-50/50 hover:border-blue-200'
                   }`}
                 >
-                  <div className="text-lg">🔄 顺时针</div>
-                  <div className="text-xs mt-1">只能从下家抽牌</div>
+                  <div className="text-base font-bold">🔄 顺时针</div>
+                  <div className="text-[10px] mt-0.5 opacity-70">只能从下家抽牌</div>
                 </button>
                 <button
                   onClick={() => setSelectedDrawMode('any')}
-                  className={`py-4 rounded-xl border-2 transition-all text-center ${
+                  className={`py-3.5 rounded-xl border-2 transition-all duration-200 ${
                     selectedDrawMode === 'any'
-                      ? 'bg-purple-100 border-purple-500 text-purple-800 font-bold'
-                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-purple-50'
+                      ? 'bg-purple-50 border-purple-400 text-purple-800 shadow-sm'
+                      : 'bg-gray-50 border-gray-150 text-gray-500 hover:bg-purple-50/50 hover:border-purple-200'
                   }`}
                 >
-                  <div className="text-lg">🎲 任意抽</div>
-                  <div className="text-xs mt-1">可从任意对手抽牌</div>
+                  <div className="text-base font-bold">🎲 任意抽</div>
+                  <div className="text-[10px] mt-0.5 opacity-70">可从任意对手抽牌</div>
                 </button>
               </div>
             </div>
@@ -317,14 +439,28 @@ export default function HomePage() {
             <button
               onClick={() => handleCreateRoom(playerSelectGame as GameType, selectedPlayerCount, selectedDrawMode)}
               disabled={creating === playerSelectGame}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+              className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500
+                hover:to-orange-600 text-white rounded-xl font-bold text-sm
+                shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300
+                transition-all duration-200 active:scale-[0.98] disabled:opacity-50
+                disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {creating === playerSelectGame ? '创建中...' : `创建 ${selectedPlayerCount}人·${selectedDrawMode === 'neighbor' ? '顺时针' : '任意抽'} 房间`}
+              {creating === playerSelectGame ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  创建中...
+                </>
+              ) : (
+                `创建 ${selectedPlayerCount}人 · ${selectedDrawMode === 'neighbor' ? '🔄顺时针' : '🎲任意抽'} 房间`
+              )}
             </button>
 
             <button
               onClick={() => setPlayerSelectGame(null)}
-              className="w-full py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              className="w-full py-2.5 text-sm text-gray-400 hover:text-gray-600 transition-colors font-medium"
             >
               取消
             </button>

@@ -36,7 +36,7 @@ function App() {
         }
       } catch {
         // Token 可能过期，尝试静默刷新
-        const rt = localStorage.getItem('refreshToken');
+        const rt = useAuthStore.getState().refreshToken;
         if (rt) {
           try {
             const { data: refreshData } = await axios.post('/api/auth/refresh', { refreshToken: rt });

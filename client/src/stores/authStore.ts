@@ -14,19 +14,19 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  token: localStorage.getItem('token'),
-  refreshToken: localStorage.getItem('refreshToken'),
-  isAuthenticated: !!localStorage.getItem('token'),
+  token: sessionStorage.getItem('token'),
+  refreshToken: sessionStorage.getItem('refreshToken'),
+  isAuthenticated: !!sessionStorage.getItem('token'),
 
   setAuth: (user, token, refreshToken) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('refreshToken', refreshToken);
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('refreshToken', refreshToken);
     set({ user, token, refreshToken, isAuthenticated: true });
   },
 
   logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('refreshToken');
     // 清除其他 store 的状态 (通过 window dispatch 事件)
     window.dispatchEvent(new CustomEvent('auth:logout'));
     set({ user: null, token: null, refreshToken: null, isAuthenticated: false });

@@ -153,14 +153,6 @@ if (/<[^>]*>/.test(trimmedNickname)) {
   throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '昵称包含非法字符');
 }
 
-// 验证密码强度 (至少8位，含字母和数字)
-if (password.length < 8) {
-  throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '密码至少8位');
-}
-if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-  throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '密码需包含字母和数字');
-}
-
     // 检查邮箱是否已注册
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {

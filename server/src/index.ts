@@ -7,6 +7,7 @@ import { config } from './config';
 import { initSocket } from './socket';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
+import { gameService } from './services/gameService';
 
 // 路由
 import authRoutes from './routes/auth';
@@ -44,14 +45,21 @@ app.use(errorHandler);
 const io = initSocket(server);
 
 // 启动服务器
-server.listen(config.port, () => {
-  logger.info(`==================================`);
-  logger.info(`  Table Games Server 已启动`);
-  logger.info(`  HTTP:  http://localhost:${config.port}`);
-  logger.info(`  WS:    ws://localhost:${config.port}`);
-  logger.info(`  环境:  ${process.env.NODE_ENV || 'development'}`);
-  logger.info(`==================================`);
-});
+async function startServer() {
+  // 清理上次服务器会话遗留的僵尸 WAITING 房间
+  await gameService.cleanupStaleRooms();
+
+  server.listen(config.port, () => {
+    logger.info(`==================================`);
+    logger.info(`  Table Games Server 已启动`);
+    logger.info(`  HTTP:  http://localhost:${config.port}`);
+    logger.info(`  WS:    ws://localhost:${config.port}`);
+    logger.info(`  环境:  ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`==================================`);
+  });
+}
+
+startServer();
 
 // 优雅关闭
 async function gracefulShutdown(signal: string) {

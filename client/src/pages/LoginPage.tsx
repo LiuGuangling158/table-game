@@ -72,10 +72,6 @@ export default function LoginPage() {
       setError('请填写所有字段');
       return;
     }
-    if (password.length < 6) {
-      setError('密码至少6位');
-      return;
-    }
     if (password !== confirmPassword) {
       setError('两次密码不一致');
       return;
@@ -217,7 +213,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="至少6位密码"
+                placeholder="请输入密码"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
               />
             </div>

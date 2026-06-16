@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { refreshSocketToken } from './socket';
+import { useAuthStore } from '../stores/authStore';
 
 const api = axios.create({
   baseURL: '/api',
@@ -13,9 +14,9 @@ const api = axios.create({
 let isRefreshing = false;
 let refreshPromise: Promise<any> | null = null;
 
-// 请求拦截器: 添加 JWT Token
+// 请求拦截器: 添加 JWT Token (从 authStore 读取，避免跨标签页 token 覆盖问题)
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -35,14 +36,14 @@ api.interceptors.response.use(
         // 如果已有刷新在进行中，等待其完成
         if (isRefreshing && refreshPromise) {
           await refreshPromise;
-          const newToken = localStorage.getItem('token');
+          const newToken = useAuthStore.getState().token;
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return api(originalRequest);
         }
 
         isRefreshing = true;
 
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = useAuthStore.getState().refreshToken;
         if (!refreshToken) {
           throw new Error('No refresh token');
         }
@@ -51,8 +52,12 @@ api.interceptors.response.use(
         const { data } = await refreshPromise;
         const { token, refreshToken: newRefreshToken } = data.data;
 
-        localStorage.setItem('token', token);
-        localStorage.setItem('refreshToken', newRefreshToken);
+        // 更新 authStore (内部写入 sessionStorage)
+        useAuthStore.getState().setAuth(
+          useAuthStore.getState().user!,
+          token,
+          newRefreshToken,
+        );
         originalRequest.headers.Authorization = `Bearer ${token}`;
 
         // 同步更新 Socket 的 token
@@ -60,8 +65,7 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
+        useAuthStore.getState().logout();
         window.location.href = '/login';
         return Promise.reject(error);
       } finally {

@@ -28,9 +28,6 @@ interface ActiveWangbaGame {
 }
 export const activeWangbaGames = new Map<string, ActiveWangbaGame>();
 
-// 存储游戏计时器: roomId -> { playerTimers, interval }
-const gameTimers = new Map<string, any>();
-
 // 走棋互斥锁: roomId → true (防止同一玩家多标签页并发走棋)
 const moveLocks = new Map<string, boolean>();
 
@@ -195,7 +192,6 @@ export function handleGame(io: Server, socket: Socket): void {
 
         // 清理游戏实例
         activeGames.delete(data.roomId);
-        cleanupTimer(data.roomId);
 
         logger.info(`游戏结束: ${data.roomId}, 胜者: ${gameOver.winner}, 原因: ${gameOver.reason}`);
       }
@@ -237,7 +233,6 @@ export function handleGame(io: Server, socket: Socket): void {
 
       await gameService.endGame(data.roomId, winner as PlayerColor, EndReason.RESIGN);
       activeGames.delete(data.roomId);
-      cleanupTimer(data.roomId);
 
       logger.info(`游戏结束: ${data.roomId}, 认输: ${resignColor}, 胜者: ${winner}`);
     } catch (error: any) {
@@ -282,7 +277,6 @@ export function handleGame(io: Server, socket: Socket): void {
 
         await gameService.endGame(data.roomId, null, EndReason.DRAW);
         activeGames.delete(data.roomId);
-        cleanupTimer(data.roomId);
 
         logger.info(`游戏结束: ${data.roomId}, 和棋`);
       } else {
@@ -461,7 +455,6 @@ export function handleGame(io: Server, socket: Socket): void {
         );
 
         activeWangbaGames.delete(data.roomId);
-        cleanupTimer(data.roomId);
 
         logger.info(`抽王八游戏结束: ${data.roomId}, 输家: ${gameOver.loserId}, 赢家: ${gameOver.winnerIds.join(', ')}`);
       }
@@ -488,14 +481,6 @@ export function handleGame(io: Server, socket: Socket): void {
 
     emitWangbaSync(io, socket, data.roomId, wbData, user.userId);
   });
-}
-
-function cleanupTimer(roomId: string) {
-  const timer = gameTimers.get(roomId);
-  if (timer) {
-    clearInterval(timer.interval);
-    gameTimers.delete(roomId);
-  }
 }
 
 /** 向指定玩家发送抽王八游戏同步数据 */

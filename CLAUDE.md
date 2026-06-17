@@ -14,13 +14,13 @@ shared/          共享类型/常量 (3项目共用)
 |---|---|
 | 前端 | React 18, react-router-dom v6, Zustand, Socket.IO Client, Tailwind CSS, Canvas |
 | 后端 | Express 4, `express-async-errors`, Socket.IO 4, Prisma 5, JWT (jsonwebtoken), bcryptjs |
-| 数据库 | PostgreSQL 16 (docker-compose), Redis 7 |
-| 共享 | TypeScript 枚举/接口/常量 (GameType, BoardState, Move, ErrorCodes...) |
+| 数据库 | PostgreSQL 16 (docker-compose) |
+| 共享 | TypeScript 枚举/接口/常量 (GameType, BoardState, Move, ERROR_CODES...) |
 
 ## 启动方式
 
 ```bash
-docker-compose up -d              # PostgreSQL + Redis
+docker-compose up -d              # PostgreSQL
 npm run db:migrate                # Prisma 迁移
 npm run dev                       # concurrently 启动 client:5173 + server:3001
 ```
@@ -77,7 +77,6 @@ user:*     用户状态 (online, offline)
 ### 路由中间件
 
 - `authMiddleware` — 强制 Bearer JWT 验证 (挂载 `req.user`)
-- `optionalAuth` — 可选认证
 - `errorHandler` — 捕获 `AppError` 统一返回 `{success, error, message}`
 - Socket.IO 认证中间件：验证 handshake.auth.token JWT → 挂载 `socket.user`
 
@@ -94,8 +93,7 @@ user:*     用户状态 (online, offline)
 
 ## 已知设计决策
 
-- 开发模式登录: `POST /api/auth/dev/login` 每次生成新 openId (非持久)
+- 开发模式登录: `POST /api/auth/dev/login` 每次生成新 openId (非持久)；微信/QQ OAuth 代码已移除
 - 自动开始: 双方 ready 后 3 秒倒计时服务端自动 startGame
 - 游戏状态存在内存 (`activeGames` Map)，服务重启丢失
-- `gameTimers` Map 为预留计时器基础设施，当前未启用
 - `shared.EndReason` vs `@prisma/client.EndReason` 同值不同型，用 `as any` 桥接

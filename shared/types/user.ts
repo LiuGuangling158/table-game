@@ -12,10 +12,3 @@ export interface UserInfo {
   status: UserStatus;
   createdAt: string;
 }
-
-export interface UserPublicInfo {
-  id: string;
-  nickname: string;
-  avatar: string | null;
-  status: UserStatus;
-}

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { connectSocket, getSocket, disconnectSocket } from '../services/socket';
+import { connectSocket, getSocket } from '../services/socket';
 import { useAuthStore } from '../stores/authStore';
 import { useFriendStore } from '../stores/friendStore';
 

@@ -6,7 +6,6 @@ import { useGameStore } from '../../stores/gameStore';
 import { useSocket, useFriendStatus } from '../../hooks/useSocket';
 import { getSocket, disconnectSocket } from '../../services/socket';
 
-// 全局通知
 interface Notification {
   id: number;
   type: 'error' | 'info' | 'success';
@@ -22,7 +21,6 @@ export default function MainLayout() {
   const { user, logout } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // 初始化 Socket 连接
   useSocket();
   useFriendStatus();
 
@@ -79,7 +77,6 @@ export default function MainLayout() {
   const handleLogout = () => {
     disconnectSocket();
     logout();
-    // 清除其他 Store 的状态 (防止换号登录数据泄露)
     useFriendStore.getState().reset();
     useGameStore.getState().resetGame();
     navigate('/login');
@@ -92,23 +89,46 @@ export default function MainLayout() {
     { path: '/profile', label: '我的', icon: '👤' },
   ];
 
+  const notifColors: Record<string, string> = {
+    error: 'is-error',
+    info: '',
+    success: 'is-success',
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl">🎯</span>
-            <span className="text-lg font-bold text-gray-800 hidden sm:block">Table Games</span>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-color)' }}>
+      {/* ===== Header ===== */}
+      <header style={{
+        background: '#fff',
+        borderBottom: '4px solid #000',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+      }}>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '0 16px',
+          height: '56px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'inherit' }}>
+            <span style={{ fontSize: '28px' }}>🎯</span>
+            <span style={{ fontFamily: "'PixelChinese', 'SimHei', 'PingFang SC', 'Microsoft YaHei', monospace", fontSize: '18px', color: 'var(--text-color)' }}>
+              Table Games
+            </span>
           </Link>
 
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif", fontSize: '15px', color: '#555' }}>
               {user?.nickname || '用户'}
             </span>
             <button
               onClick={handleLogout}
-              className="text-sm text-gray-400 hover:text-red-500 transition-colors"
+              className="nes-btn is-error"
+              style={{ padding: '4px 12px', fontSize: '13px' }}
             >
               退出
             </button>
@@ -116,72 +136,143 @@ export default function MainLayout() {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 pb-20 md:pl-20">
+      {/* ===== Main Content ===== */}
+      <main style={{
+        flex: 1,
+        maxWidth: '1200px',
+        margin: '0 auto',
+        width: '100%',
+        padding: '24px 16px',
+        paddingBottom: '80px',  /* room for mobile nav */
+        ...(typeof window !== 'undefined' && window.innerWidth >= 768 ? { paddingLeft: '80px' } : {}),
+      }}>
         <Outlet />
       </main>
 
-      {/* Notification Toast */}
-      <div className="fixed top-16 right-4 z-[100] space-y-2">
+      {/* ===== Notification Toast ===== */}
+      <div style={{
+        position: 'fixed',
+        top: '64px',
+        right: '12px',
+        zIndex: 100,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        maxWidth: '320px',
+      }}>
         {notifications.map(n => (
-          <div
-            key={n.id}
-            className={`px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium animate-slide-in max-w-xs flex items-center gap-3 ${
-              n.type === 'error' ? 'bg-red-500 text-white' :
-              n.type === 'success' ? 'bg-green-500 text-white' :
-              'bg-blue-500 text-white'
-            }`}
-          >
-            <span className="flex-1">{n.message}</span>
-            {n.action && (
-              <button
-                onClick={n.action.onClick}
-                className="px-3 py-1 bg-white/20 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors whitespace-nowrap"
-              >
-                {n.action.label}
-              </button>
-            )}
+          <div key={n.id} className="animate-pixel-slide-in">
+            <section className={`nes-balloon from-right ${notifColors[n.type] || ''}`}
+              style={{ fontSize: '14px', margin: 0 }}>
+              <p style={{ fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif" }}>
+                {n.message}
+              </p>
+              {n.action && (
+                <button
+                  onClick={n.action.onClick}
+                  className="nes-btn is-primary"
+                  style={{ marginTop: '8px', fontSize: '12px', padding: '2px 12px' }}
+                >
+                  {n.action.label}
+                </button>
+              )}
+            </section>
           </div>
         ))}
       </div>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden z-50">
-        <div className="flex">
-          {navItems.map((item) => (
+      {/* ===== Mobile Bottom Nav ===== */}
+      <nav style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: '#fff',
+        borderTop: '4px solid #000',
+        zIndex: 50,
+        display: 'flex',
+      }}
+      className="md-hidden">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${
-                location.pathname === item.path
-                  ? 'text-blue-600'
-                  : 'text-gray-500'
-              }`}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '6px 0',
+                textDecoration: 'none',
+                background: isActive ? 'var(--primary-color)' : 'transparent',
+                color: isActive ? '#fff' : '#555',
+                borderRight: '2px solid #000',
+              }}
             >
-              <span className="text-xl">{item.icon}</span>
-              <span>{item.label}</span>
+              <span style={{ fontSize: '20px' }}>{item.icon}</span>
+              <span style={{ fontSize: '11px', fontFamily: "'PixelChinese', 'SimHei', 'PingFang SC', 'Microsoft YaHei', monospace", marginTop: '2px' }}>
+                {item.label}
+              </span>
             </Link>
-          ))}
-        </div>
+          );
+        })}
       </nav>
 
-      {/* Desktop Sidebar Nav */}
-      <div className="hidden md:flex fixed left-0 top-14 bottom-0 w-16 bg-white border-r flex-col items-center py-4 gap-2 z-40">
-        {navItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`w-12 h-12 flex flex-col items-center justify-center rounded-xl transition-colors ${
-              location.pathname === item.path
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-500 hover:bg-gray-50'
-            }`}
-            title={item.label}
-          >
-            <span className="text-xl">{item.icon}</span>
-          </Link>
-        ))}
+      {/* ===== Desktop Sidebar Nav ===== */}
+      <div style={{
+        position: 'fixed',
+        left: 0,
+        top: '56px',
+        bottom: 0,
+        width: '64px',
+        background: '#fff',
+        borderRight: '4px solid #000',
+        zIndex: 40,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        paddingTop: '16px',
+        gap: '8px',
+      }}
+      className="md-flex-hidden">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              title={item.label}
+              style={{
+                width: '48px',
+                height: '48px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textDecoration: 'none',
+                background: isActive ? 'var(--primary-color)' : 'transparent',
+                color: isActive ? '#fff' : '#555',
+                border: isActive ? '2px solid #000' : '2px solid transparent',
+                imageRendering: 'pixelated',
+              }}
+            >
+              <span style={{ fontSize: '22px' }}>{item.icon}</span>
+            </Link>
+          );
+        })}
       </div>
+
+      {/* Responsive helper styles */}
+      <style>{`
+        .md-hidden { display: flex; }
+        .md-flex-hidden { display: none; }
+        @media (min-width: 768px) {
+          .md-hidden { display: none !important; }
+          .md-flex-hidden { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }

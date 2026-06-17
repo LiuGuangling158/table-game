@@ -6,11 +6,11 @@ import { Move, PlayerColor } from 'shared';
 
 const ROWS = 10;
 const COLS = 9;
-const CELL_SIZE = 56;
-const PADDING = 28;
+const CELL_SIZE = 60;
+const PADDING = 30;
 const CANVAS_W = CELL_SIZE * (COLS - 1) + PADDING * 2;
 const CANVAS_H = CELL_SIZE * (ROWS - 1) + PADDING * 2;
-const PIECE_RADIUS = 22;
+const PIECE_RADIUS = 24;
 
 // 棋子中文映射
 const PIECE_NAMES: Record<string, string> = {
@@ -266,8 +266,13 @@ export default function XiangqiBoard() {
       width={CANVAS_W}
       height={CANVAS_H}
       onClick={handleClick}
-      className="game-board rounded-xl shadow-lg cursor-pointer"
-      style={{ width: Math.min(CANVAS_W, window.innerWidth - 40) }}
+      className="game-board"
+      style={{
+        maxWidth: '100%',
+        border: '4px solid #000',
+        imageRendering: 'pixelated',
+        cursor: 'pointer',
+      }}
     />
   );
 }

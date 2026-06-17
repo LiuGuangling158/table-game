@@ -1,4 +1,4 @@
-import { PrismaClient, RequestStatus, UserStatus } from '@prisma/client';
+import { PrismaClient, RequestStatus } from '@prisma/client';
 import { ERROR_CODES } from 'shared';
 import { AppError } from '../middleware/errorHandler';
 

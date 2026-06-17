@@ -31,11 +31,11 @@ export function connectSocket(): Socket {
   (socket as any)._authToken = token;
 
   socket.on('connect', () => {
-    console.log('[Socket] 已连接:', socket?.id);
+    // Socket 已连接
   });
 
-  socket.on('disconnect', (reason) => {
-    console.log('[Socket] 断开:', reason);
+  socket.on('disconnect', (_reason) => {
+    // Socket 已断开
   });
 
   socket.on('connect_error', (error) => {

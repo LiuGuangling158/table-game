@@ -1,6 +1,7 @@
 import { PrismaClient, GameType, RoomStatus, PlayerColor, EndReason } from '@prisma/client';
 import { ERROR_CODES } from 'shared';
 import { AppError } from '../middleware/errorHandler';
+import { logger } from '../utils/logger';
 
 const prisma = new PrismaClient();
 
@@ -339,7 +340,7 @@ export class GameService {
       data: { status: RoomStatus.CANCELLED },
     });
     if (result.count > 0) {
-      console.log(`[Startup] 已清理 ${result.count} 个僵尸WAITING房间`);
+      logger.info(`[Startup] 已清理 ${result.count} 个僵尸WAITING房间`);
     }
     return result.count;
   }

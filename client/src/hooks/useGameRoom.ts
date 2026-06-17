@@ -81,7 +81,6 @@ export function useGameRoom(roomId: string) {
 
     // 断线重连 / 延迟注册
     const handleConnect = () => {
-      console.log('[useGameRoom] Socket 已连接，注册游戏事件, room:', roomId);
       registerEvents();
       socket.emit('room:join', { roomId });
       // 加入房间后请求游戏状态
@@ -90,11 +89,11 @@ export function useGameRoom(roomId: string) {
       }, 300);
     };
 
-    // Socket 已连接：直接注册事件 (游戏状态由 game:init / game:wangba_init 提供)
+    // Socket 已连接：直接注册事件 + 确保 socket 在房间内（修复 StrictMode 双重挂载导致 room:leave 后未重新加入的问题）
     if (socket.connected) {
       registeredRef.current = true;
       registerEvents();
-      // 注意: 不在此处 emit game:get_state，避免在游戏初始化前发送请求导致误报警告
+      socket.emit('room:join', { roomId });
     } else {
       // Socket 尚未连接：等待 connect 事件触发后再注册
       registeredRef.current = true;

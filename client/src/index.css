@@ -1,7 +1,29 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ===== Local Pixel Font "AaWeiWeiDianZhenTi" (支持中文) ===== */
+@font-face {
+  font-family: 'PixelChinese';
+  src: url('/fonts/AaWeiWeiDianZhenTi-2.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 
+/* ===== CSS Custom Properties (NES Color Palette) ===== */
+:root {
+  --bg-color: #f8f8f0;
+  --text-color: #2d2d2d;
+  --border-color: #000;
+  --primary-color: #209cee;
+  --success-color: #92cc41;
+  --warning-color: #f7d51d;
+  --error-color: #e76e55;
+
+  --accent-gomoku: #209cee;
+  --accent-xiangqi: #e76e55;
+  --accent-chess: #555;
+  --accent-wangba: #f7d51d;
+}
+
+/* ===== Global Reset ===== */
 * {
   margin: 0;
   padding: 0;
@@ -9,165 +31,228 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  background-color: #f0f2f5;
-  color: #1a1a2e;
+  font-family: 'PixelChinese', 'SimHei', 'PingFang SC', 'Microsoft YaHei', monospace;
+  background-color: var(--bg-color);
+  color: var(--text-color);
   min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.8;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* 棋盘样式 */
+/* ===== Typography Helpers ===== */
+
+.text-pixel-xs  { font-family: 'PixelChinese', monospace; font-size: 12px; }
+.text-pixel-sm  { font-family: 'PixelChinese', monospace; font-size: 14px; }
+.text-pixel-md  { font-family: 'PixelChinese', monospace; font-size: 18px; }
+.text-pixel-lg  { font-family: 'PixelChinese', monospace; font-size: 24px; }
+
+.text-chinese-sm { font-family: 'SimHei','PingFang SC','Microsoft YaHei',sans-serif; font-size: 13px; }
+.text-chinese-md { font-family: 'SimHei','PingFang SC','Microsoft YaHei',sans-serif; font-size: 15px; }
+
+.btn-text-sm { font-size: 12px; }
+.btn-text-md { font-size: 14px; }
+
+.text-muted { color: #888; }/* ===== Layout Utilities ===== */
+.page-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.page-container-sm {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.page-container-md {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-spacing {
+  margin-bottom: 32px;
+}
+
+/* ===== Responsive Grid ===== */
+.nes-grid-2 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.nes-grid-3 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.nes-grid-4 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+@media (min-width: 640px) {
+  .nes-grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .nes-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .nes-grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1024px) {
+  .nes-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .nes-grid-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ===== Flex layout: sidebar + content (for GamePlayPage) ===== */
+.flex-layout-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (min-width: 1024px) {
+  .flex-layout-sidebar {
+    flex-direction: row;
+  }
+  .flex-layout-sidebar > .main-area {
+    flex: 1;
+    min-width: 0;
+  }
+  .flex-layout-sidebar > .sidebar {
+    width: 288px;
+    flex-shrink: 0;
+  }
+}
+
+/* ===== NES.css Overrides for Chinese text ===== */
+
+/* 覆盖 .title 的白色背景，消除中文文字周围的白框 */
+.nes-container.with-title > .title {
+  background-color: transparent !important;
+}
+
+.nes-input, .nes-textarea {
+  font-family: 'SimHei', 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
+}
+
+.nes-btn {
+  font-family: 'PixelChinese', 'SimHei', 'PingFang SC', 'Microsoft YaHei', monospace;
+  letter-spacing: 0;
+  font-size: 14px;
+}
+
+.nes-container {
+  line-height: 1.7;
+}
+
+/* ===== Board Game Styles (Canvas-based games keep these) ===== */
 .game-board {
   touch-action: manipulation;
   user-select: none;
 }
 
-.board-cell {
-  cursor: pointer;
-  transition: all 0.15s ease;
+
+/* ===== 8-bit Style Animations ===== */
+
+@keyframes pixel-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.animate-pixel-blink {
+  animation: pixel-blink 0.8s steps(1) infinite;
 }
 
-.board-cell:hover {
-  filter: brightness(0.9);
+@keyframes pixel-slide-in {
+  0%   { transform: translateX(24px); opacity: 0; }
+  25%  { transform: translateX(18px); opacity: 1; }
+  50%  { transform: translateX(12px); opacity: 1; }
+  75%  { transform: translateX(6px); opacity: 1; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+.animate-pixel-slide-in {
+  animation: pixel-slide-in 0.3s steps(4) both;
 }
 
-.board-cell.legal-move::after {
-  content: '';
-  position: absolute;
-  width: 30%;
-  height: 30%;
-  border-radius: 50%;
-  background: rgba(0, 128, 0, 0.4);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
+@keyframes pixel-fade-in {
+  0%   { opacity: 0; transform: translateY(8px); }
+  25%  { opacity: 0.25; transform: translateY(6px); }
+  50%  { opacity: 0.5; transform: translateY(4px); }
+  75%  { opacity: 0.75; transform: translateY(2px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-pixel-fade-in {
+  animation: pixel-fade-in 0.4s steps(4) both;
 }
 
-.board-cell.last-move {
-  background: rgba(255, 215, 0, 0.3);
+@keyframes pixel-pop-in {
+  0%   { transform: scale(0); }
+  50%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.animate-pixel-pop-in {
+  animation: pixel-pop-in 0.3s steps(3) both;
 }
 
-.piece-selected {
-  animation: piece-bounce 0.5s infinite alternate;
+/* ===== Pixel Art Utility Classes ===== */
+.pixel-dot {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  image-rendering: pixelated;
 }
 
-@keyframes piece-bounce {
-  from { transform: translate(-50%, -50%); }
-  to { transform: translate(-50%, -55%); }
+.pixel-dot-online {
+  background: var(--success-color);
+  box-shadow:
+    2px 0 0 #000, -2px 0 0 #000, 0 2px 0 #000, 0 -2px 0 #000,
+    2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
 }
 
-/* 滚动条美化 */
+.pixel-dot-offline {
+  background: #999;
+  box-shadow:
+    2px 0 0 #000, -2px 0 0 #000, 0 2px 0 #000, 0 -2px 0 #000,
+    2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+}
+
+.pixel-avatar {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 2px solid #000;
+  image-rendering: pixelated;
+  font-size: 24px;
+}
+
+/* ===== Scrollbar (pixel style) ===== */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #e8e8d8;
+  border: 1px solid #000;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+  background: #888;
+  border: 1px solid #000;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: #666;
 }
 
-/* Toast 动画 */
-.animate-slide-in {
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* ========== 卡牌游戏动画 ========== */
-
-/* 淡入上浮 */
-@keyframes fadeInUp {
-  from { transform: translateY(12px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-.animate-fade-in-up {
-  animation: fadeInUp 0.4s ease-out;
-}
-
-/* 淡入 */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* 抽牌结果弹入 */
-@keyframes slideDown {
-  from { transform: translateY(-20px); opacity: 0; max-height: 0; }
-  to { transform: translateY(0); opacity: 1; max-height: 100px; }
-}
-.animate-slide-down {
-  animation: slideDown 0.35s ease-out;
-}
-
-/* 脉冲发光 - 当前回合 */
-@keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
-}
-.animate-glow-pulse {
-  animation: glowPulse 2s ease-in-out infinite;
-}
-
-/* 卡牌悬浮 */
-@keyframes cardFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-.animate-card-float {
-  animation: cardFloat 3s ease-in-out infinite;
-}
-
-/* 轻微抖动 - 提示抽牌 */
-@keyframes gentleShake {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-1deg); }
-  75% { transform: rotate(1deg); }
-}
-.animate-gentle-shake {
-  animation: gentleShake 0.5s ease-in-out infinite;
-}
-
-/* 缩放弹出 */
-@keyframes popIn {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-.animate-pop-in {
-  animation: popIn 0.3s ease-out;
-}
-
-/* 庆祝 bounce */
-@keyframes celebrateBounce {
-  0%, 100% { transform: translateY(0) scale(1); }
-  30% { transform: translateY(-12px) scale(1.08); }
-  50% { transform: translateY(0) scale(0.95); }
-  70% { transform: translateY(-6px) scale(1.03); }
-}
-.animate-celebrate {
-  animation: celebrateBounce 0.8s ease-out;
+/* ===== Login Page Background ===== */
+.login-page-bg {
+  background: var(--bg-color);
+  background-image:
+    radial-gradient(circle, #209cee 1px, transparent 1px),
+    radial-gradient(circle, #e76e55 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: 0 0, 24px 24px;
 }

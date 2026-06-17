@@ -14,8 +14,6 @@ import axios from 'axios';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const user = useAuthStore((s) => s.user);
-  const token = useAuthStore((s) => s.token);
   const setAuth = useAuthStore((s) => s.setAuth);
   const updateUser = useAuthStore((s) => s.updateUser);
   const logout = useAuthStore((s) => s.logout);
@@ -57,10 +55,12 @@ function App() {
 
   if (restoring && isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-400 text-center">
-          <div className="text-4xl mb-3 animate-pulse">🎯</div>
-          <p>加载中...</p>
+      <div className="flex-center" style={{ minHeight: '100vh', background: 'var(--bg-color)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <i className="nes-pokeball" style={{ margin: '0 auto 16px', display: 'block' }} />
+          <p style={{ fontFamily: "'PixelChinese', 'SimHei', 'PingFang SC', 'Microsoft YaHei', monospace", fontSize: '12px', color: 'var(--text-color)' }}>
+            加载中...
+          </p>
         </div>
       </div>
     );

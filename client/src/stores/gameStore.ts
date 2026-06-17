@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BoardState, Move, PlayerColor, GameType, GameRoomInfo } from 'shared';
+import { BoardState, Move, PlayerColor, GameRoomInfo } from 'shared';
 
 interface GameStore {
   // 当前游戏

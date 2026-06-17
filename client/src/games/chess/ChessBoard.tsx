@@ -5,10 +5,10 @@ import { getSocket } from '../../services/socket';
 import { Move, PlayerColor } from 'shared';
 
 const SIZE = 8;
-const CELL_SIZE = 60;
-const PADDING = 30;
+const CELL_SIZE = 64;
+const PADDING = 32;
 const CANVAS_SIZE = CELL_SIZE * SIZE + PADDING * 2;
-const PIECE_SIZE = 24;
+const PIECE_SIZE = 26;
 
 // 棋子 Unicode 映射
 const PIECE_UNICODE: Record<string, string> = {
@@ -67,7 +67,7 @@ export default function ChessBoard() {
 
     // 坐标标注
     ctx.fillStyle = '#666';
-    ctx.font = '11px sans-serif';
+    ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
     for (let c = 0; c < SIZE; c++) {
       ctx.fillText(String.fromCharCode(97 + c), PADDING + c * CELL_SIZE + CELL_SIZE / 2, PADDING - 8);
@@ -266,16 +266,21 @@ export default function ChessBoard() {
         width={CANVAS_SIZE}
         height={CANVAS_SIZE}
         onClick={handleClick}
-        className="game-board rounded-xl shadow-lg cursor-pointer"
-        style={{ width: Math.min(CANVAS_SIZE, window.innerWidth - 40) }}
+        className="game-board"
+        style={{
+          maxWidth: '100%',
+          border: '4px solid #000',
+          imageRendering: 'pixelated',
+          cursor: 'pointer',
+        }}
       />
 
       {/* 升变选择弹窗 */}
       {pendingPromotion && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 shadow-xl space-y-4">
-            <h3 className="text-lg font-bold text-center text-gray-800">选择升变棋子</h3>
-            <div className="flex gap-4 justify-center">
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50 }}>
+          <div className="nes-container with-title is-centered" style={{ padding: 24 }}>
+            <p className="title" style={{ fontFamily:"'PixelChinese', 'SimHei', 'PingFang SC', 'Microsoft YaHei', monospace", fontSize: 12 }}>选择升变棋子</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 12 }}>
               {PROMOTION_PIECES.map(piece => {
                 const isWhite = pendingPromotion.piece === 'P';
                 const unicodeKey = isWhite ? piece : piece.toLowerCase();
@@ -283,11 +288,12 @@ export default function ChessBoard() {
                   <button
                     key={piece}
                     onClick={() => handlePromotionSelect(piece)}
-                    className="w-16 h-16 text-3xl rounded-xl bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 transition-all hover:scale-110 flex flex-col items-center justify-center"
+                    className="nes-btn"
+                    style={{ width: 64, height: 64, fontSize: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
                     title={PROMOTION_LABELS[piece]}
                   >
                     <span>{PIECE_UNICODE[unicodeKey]}</span>
-                    <span className="text-xs text-gray-500">{PROMOTION_LABELS[piece]}</span>
+                    <span style={{ fontSize: 12, fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif" }}>{PROMOTION_LABELS[piece]}</span>
                   </button>
                 );
               })}

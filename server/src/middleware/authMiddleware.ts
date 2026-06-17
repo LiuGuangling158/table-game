@@ -45,18 +45,3 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     });
   }
 }
-
-// 可选的认证 — 不强制，但如果有 token 就解析
-export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    try {
-      req.user = verifyToken(token);
-    } catch {
-      // Ignore invalid tokens in optional auth
-    }
-  }
-  next();
-}

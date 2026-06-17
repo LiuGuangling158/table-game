@@ -10,9 +10,7 @@ export default function HistoryPage() {
   const [hasMore, setHasMore] = useState(false);
   const pageSize = 20;
 
-  useEffect(() => {
-    fetchHistory(1);
-  }, []);
+  useEffect(() => { fetchHistory(1); }, []);
 
   const fetchHistory = async (pageNum: number) => {
     setLoading(true);
@@ -22,97 +20,96 @@ export default function HistoryPage() {
         const newItems = data.data.items || [];
         setTotal(data.data.total || 0);
         setHasMore(pageNum * pageSize < data.data.total);
-
-        if (pageNum === 1) {
-          setRecords(newItems);
-        } else {
-          setRecords(prev => [...prev, ...newItems]);
-        }
+        if (pageNum === 1) { setRecords(newItems); }
+        else { setRecords(prev => [...prev, ...newItems]); }
         setPage(pageNum);
       }
     } catch (err) {
       console.error('获取历史记录失败:', err);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const getResultLabel = (record: any) => {
-    if (!record.winnerId) return { text: '平局', color: 'text-gray-500' };
-    // 简化：显示胜者
+    if (!record.winnerId) return { text: '平局', color: '#888' };
     const winner = record.players?.find((p: any) => p.userId === record.winnerId);
-    return {
-      text: `${winner?.nickname || '?'} 获胜`,
-      color: 'text-green-600',
-    };
+    return { text: `${winner?.nickname || '?'} 获胜`, color: 'var(--success-color)' };
   };
 
   const getReasonLabel = (reason: string) => {
     const labels: Record<string, string> = {
-      CHECKMATE: '将死',
-      RESIGN: '认输',
-      DRAW: '和棋',
-      TIMEOUT: '超时',
-      DISCONNECT: '断线',
+      CHECKMATE: '将死', RESIGN: '认输', DRAW: '和棋', TIMEOUT: '超时',
+      DISCONNECT: '断线', STALEMATE: '逼和', FIVE_IN_ROW: '五连', LAST_CARD: '最后一张',
     };
     return labels[reason] || reason;
   };
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h2 className="text-xl font-bold text-gray-800">历史战绩</h2>
+  const titleStyle: React.CSSProperties = { fontFamily: "'PixelChinese', 'SimHei', 'PingFang SC', 'Microsoft YaHei', monospace", fontSize: '18px' };
 
-      {loading ? (
-        <div className="text-center p-12 text-gray-400">加载中...</div>
+  return (
+    <div className="page-container-md" style={{ animation: 'pixel-fade-in 0.4s steps(4) both' }}>
+      <h2 style={{ ...titleStyle, marginBottom: '20px' }}>📊 历史战绩</h2>
+
+      {loading && records.length === 0 ? (
+        <div className="nes-container is-centered" style={{ padding: '48px' }}>
+          <i className="nes-pokeball" style={{ display: 'block', margin: '0 auto 12px' }} />
+          <p style={{ fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif", fontSize: '15px', color: '#888' }}>
+            加载中...
+          </p>
+        </div>
       ) : records.length === 0 ? (
-        <div className="bg-white rounded-xl p-12 text-center text-gray-400 shadow-sm border">
-          <div className="text-4xl mb-3">📊</div>
-          <p>暂无游戏记录</p>
-          <p className="text-sm mt-1">开始对弈后战绩将在这里显示</p>
+        <div className="nes-container is-centered" style={{ padding: '48px' }}>
+          <div style={{ fontSize: '40px', marginBottom: '8px' }}>📊</div>
+          <p style={{ fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif", fontSize: '15px', color: '#888' }}>
+            暂无游戏记录
+          </p>
+          <p style={{ fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif", fontSize: '14px', color: '#aaa', marginTop: '4px' }}>
+            开始对弈后战绩将在这里显示
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {records.map((record: any) => {
-            const result = getResultLabel(record);
-            return (
-              <div key={record.id} className="bg-white rounded-xl shadow-sm border p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-gray-800">
-                      {GAME_TYPE_LABELS[record.gameType] || record.gameType}
-                    </span>
-                    <span className="text-xs text-gray-400 ml-2">
-                      {getReasonLabel(record.reason)}
+        <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {records.map((record: any) => {
+              const result = getResultLabel(record);
+              return (
+                <div key={record.id} className="nes-container" style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontFamily: "'PixelChinese', 'SimHei', 'PingFang SC', 'Microsoft YaHei', monospace", fontSize: '13px' }}>
+                        {GAME_TYPE_LABELS[record.gameType] || record.gameType}
+                      </span>
+                      <span style={{ fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif", fontSize: '13px', color: '#888', marginLeft: '8px' }}>
+                        {getReasonLabel(record.reason)}
+                      </span>
+                    </div>
+                    <span style={{ fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif", fontSize: '14px', fontWeight: 'bold', color: result.color }}>
+                      {result.text}
                     </span>
                   </div>
-                  <span className={`font-medium ${result.color}`}>{result.text}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-                  {record.players?.map((p: any, idx: number) => (
-                    <span key={p.userId}>
-                      {idx > 0 && ' vs '}
-                      <span className={p.userId === record.winnerId ? 'font-medium text-gray-800' : ''}>
-                        {p.nickname}
+                  <div style={{ marginTop: '8px', fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif", fontSize: '14px', color: '#555' }}>
+                    {record.players?.map((p: any, idx: number) => (
+                      <span key={p.userId}>
+                        {idx > 0 && ' vs '}
+                        <span style={{ fontWeight: p.userId === record.winnerId ? 'bold' : 'normal' }}>
+                          {p.nickname}
+                        </span>
                       </span>
-                    </span>
-                  ))}
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontFamily: "'SimHei','PingFang SC','Microsoft YaHei',sans-serif", fontSize: '13px', color: '#aaa' }}>
+                    <span>{record.duration ? `${Math.floor(record.duration / 60)}分${record.duration % 60}秒` : '-'}</span>
+                    <span>{new Date(record.createdAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-                  <span>{record.duration ? `${Math.floor(record.duration / 60)}分${record.duration % 60}秒` : '-'}</span>
-                  <span>{new Date(record.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
 
-          {/* 加载更多 */}
           {hasMore && (
-            <div className="text-center py-3">
-              <button
-                onClick={() => fetchHistory(page + 1)}
-                disabled={loading}
-                className="px-6 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:opacity-50"
-              >
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              <button onClick={() => fetchHistory(page + 1)} disabled={loading}
+                className={`nes-btn is-primary ${loading ? 'is-disabled' : ''}`}
+                style={{ fontSize: '13px' }}>
                 {loading ? '加载中...' : `加载更多 (${records.length}/${total})`}
               </button>
             </div>

@@ -26,25 +26,3 @@ export const ERROR_CODES = {
   INVALID_MOVE: 'INVALID_MOVE',
   NOT_ENOUGH_PLAYERS: 'NOT_ENOUGH_PLAYERS',
 } as const;
-
-export const ERROR_MESSAGES: Record<string, string> = {
-  UNAUTHORIZED: '请先登录',
-  FORBIDDEN: '没有权限',
-  NOT_FOUND: '资源不存在',
-  VALIDATION_ERROR: '参数验证失败',
-  INTERNAL_ERROR: '服务器内部错误',
-  INVALID_TOKEN: '无效的Token',
-  TOKEN_EXPIRED: 'Token已过期',
-  OAUTH_FAILED: '第三方登录失败',
-  ALREADY_FRIENDS: '已经是好友',
-  FRIEND_REQUEST_EXISTS: '已存在好友请求',
-  NOT_FRIENDS: '不是好友',
-  SELF_OPERATION: '不能对自己操作',
-  ROOM_FULL: '房间已满',
-  ROOM_NOT_FOUND: '房间不存在',
-  NOT_IN_ROOM: '不在房间中',
-  GAME_ALREADY_STARTED: '游戏已经开始',
-  NOT_YOUR_TURN: '还没轮到你',
-  INVALID_MOVE: '无效的走法',
-  NOT_ENOUGH_PLAYERS: '玩家不足',
-};

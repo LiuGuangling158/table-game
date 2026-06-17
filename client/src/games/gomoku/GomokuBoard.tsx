@@ -5,10 +5,10 @@ import { getSocket } from '../../services/socket';
 import { Move, PlayerColor } from 'shared';
 
 const BOARD_SIZE = 15;
-const CELL_SIZE = 36;
-const PADDING = 20;
+const CELL_SIZE = 40;
+const PADDING = 24;
 const CANVAS_SIZE = CELL_SIZE * (BOARD_SIZE - 1) + PADDING * 2;
-const STONE_RADIUS = CELL_SIZE * 0.42;
+const STONE_RADIUS = CELL_SIZE * 0.44;
 
 export default function GomokuBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -193,8 +193,13 @@ export default function GomokuBoard() {
       width={CANVAS_SIZE}
       height={CANVAS_SIZE}
       onClick={handleClick}
-      className="game-board rounded-xl shadow-lg cursor-pointer"
-      style={{ width: Math.min(CANVAS_SIZE, window.innerWidth - 40) }}
+      className="game-board"
+      style={{
+        maxWidth: '100%',
+        border: '4px solid #000',
+        imageRendering: 'pixelated',
+        cursor: 'pointer',
+      }}
     />
   );
 }

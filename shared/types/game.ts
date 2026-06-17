@@ -89,14 +89,6 @@ export interface GameOverResult {
   finalState: BoardState;
 }
 
-// 游戏配置
-export interface GameConfig {
-  gameType: GameType;
-  boardRows: number;
-  boardCols: number;
-  timeLimit?: number; // 每步限时(秒)
-  totalTime?: number; // 总局时(秒)
-}
 
 // ==================== 房间类型 ====================
 
@@ -145,29 +137,6 @@ export interface FriendInfo {
   since: string;
 }
 
-// ==================== 游戏记录类型 ====================
-
-export interface GameRecordInfo {
-  id: string;
-  gameType: GameType;
-  players: {
-    userId: string;
-    nickname: string;
-    color: PlayerColor;
-  }[];
-  winnerId: string | null;
-  reason: EndReason;
-  duration: number | null;
-  moves: GameMoveInfo[];
-  createdAt: string;
-}
-
-export interface GameMoveInfo {
-  moveNumber: number;
-  userId: string;
-  moveData: Move;
-  createdAt: string;
-}
 
 // ==================== 抽王八 (卡牌游戏) 类型 ====================
 
@@ -211,12 +180,6 @@ export interface WangbaPlayerHand {
   userId: string;
   handCards: WangbaCard[];     // 手中剩余的牌
   discardPairs: [WangbaCard, WangbaCard][]; // 已配对的牌
-}
-
-/** 抽王八走法 (客户端发出) */
-export interface WangbaDrawMove {
-  roomId: string;
-  targetPlayerId: string; // 从哪位玩家手中抽牌
 }
 
 /** 抽王八走法结果 (服务端广播) */

@@ -80,56 +80,6 @@ router.post('/dev/login', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/auth/wechat/url — 获取微信授权 URL
-router.get('/wechat/url', (req: Request, res: Response) => {
-  const redirectUri = req.query.redirect_uri as string || `${req.protocol}://${req.get('host')}/api/auth/wechat/callback`;
-  const state = Math.random().toString(36).substring(2, 15);
-  const url = authService.getOAuthUrl('wechat', redirectUri, state);
-
-  res.json({ success: true, data: { url, state } });
-});
-
-// GET /api/auth/qq/url — 获取 QQ 授权 URL
-router.get('/qq/url', (req: Request, res: Response) => {
-  const redirectUri = req.query.redirect_uri as string || `${req.protocol}://${req.get('host')}/api/auth/qq/callback`;
-  const state = Math.random().toString(36).substring(2, 15);
-  const url = authService.getOAuthUrl('qq', redirectUri, state);
-
-  res.json({ success: true, data: { url, state } });
-});
-
-// POST /api/auth/wechat/callback — 微信授权回调
-router.post('/wechat/callback', async (req: Request, res: Response) => {
-  try {
-    const { code } = req.body;
-    if (!code) {
-      throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '缺少code参数');
-    }
-
-    const result = await authService.loginWithWechat(code);
-    res.json({ success: true, data: result });
-  } catch (error: any) {
-    if (error instanceof AppError) throw error;
-    throw new AppError(500, ERROR_CODES.OAUTH_FAILED, error.message || '微信登录失败');
-  }
-});
-
-// POST /api/auth/qq/callback — QQ 授权回调
-router.post('/qq/callback', async (req: Request, res: Response) => {
-  try {
-    const { code, redirect_uri } = req.body;
-    if (!code) {
-      throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, '缺少code参数');
-    }
-
-    const result = await authService.loginWithQQ(code, redirect_uri || '');
-    res.json({ success: true, data: result });
-  } catch (error: any) {
-    if (error instanceof AppError) throw error;
-    throw new AppError(500, ERROR_CODES.OAUTH_FAILED, error.message || 'QQ登录失败');
-  }
-});
-
 // POST /api/auth/register — 邮箱注册
 router.post('/register', async (req: Request, res: Response) => {
   try {
